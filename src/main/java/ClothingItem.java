@@ -1,4 +1,8 @@
 import java.util.Scanner;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import java.util.Arrays;
+import java.util.Objects;
 
 public class ClothingItem {
     private String category;
@@ -28,7 +32,17 @@ public class ClothingItem {
     public void setCancelled(boolean cancelled) {
         this.cancelled = cancelled;
     }
+    public boolean isCash() {
+        return "Cash".equalsIgnoreCase(this.category);
+    }
 
+    public String getTradeDisplayText() {
+        if(isCash()) {
+            return String.format("Cash\n$%.2f", price);
+        }
+        return String.format("%s\n%s\nSize: %s\n$%.2f",
+                category, name, size, price);
+    }
 
     public ClothingItem(Scanner scanner) {
         System.out.println("Enter details for the new ClothingItem:");
@@ -60,7 +74,7 @@ public class ClothingItem {
         scanner.nextLine();
     }
 
-    public ClothingItem(String category, String brand, String name, String color1, String size, int condition, String description, double price) { // Updated parameter name
+    public ClothingItem(String category, String brand, String name, String color1, String size, int condition, String description, double price) {
         this.category = capitalizeWords(category);
         this.brand = capitalizeWords(brand);
         this.name = capitalizeWords(name);
@@ -71,6 +85,9 @@ public class ClothingItem {
         this.price = price;
     }
 
+    public boolean isActive() {
+        return !isSold() && !isCancelled();
+    }
     private String capitalizeWords(String input) {
         if (input == null || input.isEmpty()) {
             return input;
