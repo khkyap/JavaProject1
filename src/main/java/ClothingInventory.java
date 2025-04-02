@@ -43,7 +43,7 @@ public class ClothingInventory {
     }
 
     // Method to automatically add an item to the appropriate category row
-    public void autoAddItem(String category, String brand, String name, String color1, String size, int condition, String description, double price) {
+    public void autoAddItem(String category, String brand, String name, String color1, String size, int condition, String description, double price, int stock, double purchasePrice) {
         // Normalize and validate the category
         category = normalizeCategoryName(category);
         if (!isValidCategory(category)) {
@@ -61,7 +61,7 @@ public class ClothingInventory {
         // Find the first empty column in the row
         for (int col = 0; col < cols; col++) {
             if (inventory[row][col] == null) {
-                inventory[row][col] = new ClothingItem(category, brand, name, color1, size, condition, description, price);
+                inventory[row][col] = new ClothingItem(category, brand, name, color1, size, condition, description, price, stock, purchasePrice);
                 System.out.println("Item added successfully in row " + row + ", column " + col);
                 return;
             }
@@ -126,16 +126,18 @@ public class ClothingInventory {
         return inventory[row][col];
     }
 
-    public void updateItem(int row, int col, String category, String brand, String name, String color1, String size, int condition, String description, double price) {
+    public void updateItem(int row, int col, String category, String brand, String name, String color1, String size, int condition, String description, double price, int stock) {
         if (row >= 0 && row < rows && col >= 0 && col < cols && inventory[row][col] != null) {
-            inventory[row][col].setCategory(category);
-            inventory[row][col].setBrand(brand);
-            inventory[row][col].setName(name);
-            inventory[row][col].setColor1(color1);
-            inventory[row][col].setSize(size);
-            inventory[row][col].setCondition(condition);
-            inventory[row][col].setDescription(description);
-            inventory[row][col].setPrice(price);
+            ClothingItem item = inventory[row][col];
+            item.setCategory(category);
+            item.setBrand(brand);
+            item.setName(name);
+            item.setColor1(color1);
+            item.setSize(size);
+            item.setCondition(condition);
+            item.setDescription(description);
+            item.setPrice(price);
+            item.setStock(stock);
             System.out.println("Item updated successfully at row " + row + ", column " + col);
         } else {
             System.out.println("Invalid update location or no item exists at this position.");

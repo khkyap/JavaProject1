@@ -5,17 +5,23 @@ import java.util.Arrays;
 import java.util.Objects;
 
 public class ClothingItem {
+    private double purchasePrice;
+    private double profit;
     private String category;
     private String brand;
     private String name;
     private String color1;
     private String size;
+    private int stock;
+
     private int condition;
     private String description;
     private double price;
 
     private boolean sold = false;
     private boolean cancelled = false;
+
+
 
     public boolean isSold() {
         return sold;
@@ -74,6 +80,19 @@ public class ClothingItem {
         scanner.nextLine();
     }
 
+    public ClothingItem(String category, String brand, String name, String color1, String size, int condition, String description, double price, int stock, double purchasePrice) {
+        this.category = capitalizeWords(category);
+        this.brand = capitalizeWords(brand);
+        this.name = capitalizeWords(name);
+        this.color1 = capitalizeWords(color1);
+        this.size = size;
+        this.condition = condition;
+        this.description = description;
+        this.price = price;
+        this.stock = stock;
+        this.purchasePrice = purchasePrice;
+        this.profit = 0;
+    }
     public ClothingItem(String category, String brand, String name, String color1, String size, int condition, String description, double price) {
         this.category = capitalizeWords(category);
         this.brand = capitalizeWords(brand);
@@ -84,7 +103,6 @@ public class ClothingItem {
         this.description = description;
         this.price = price;
     }
-
     public boolean isActive() {
         return !isSold() && !isCancelled();
     }
@@ -118,6 +136,9 @@ public class ClothingItem {
     public String getBrand() {
         return brand;
     }
+    public int getStock() { return stock; }
+    public void setStock(int stock) { this.stock = stock; }
+    public void adjustStock(int delta) { this.stock += delta; }
 
     public void setBrand(String brand) {
         this.brand = capitalizeWords(brand);
@@ -170,4 +191,20 @@ public class ClothingItem {
     public void setPrice(double price) {
         this.price = price;
     }
+    public double getPurchasePrice() {
+        return purchasePrice;
+    }
+
+    public void setPurchasePrice(double purchasePrice) {
+        this.purchasePrice = purchasePrice;
+    }
+
+    public double getProfit() {
+        return profit;
+    }
+
+    public void setProfit(double profit) {
+        this.profit = profit;
+    }
+
 }

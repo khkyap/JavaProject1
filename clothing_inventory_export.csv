@@ -1,0 +1,28 @@
+Category,Brand,Name,Color,Size,Condition,Description,Price,Stock,Sold,Cancelled
+"Shirt","Chrome Hearts","Ch Plus Logo T-shirt","Black","M",9,"Oversized black cotton T-shirt with silver CH Plus logo",350.00,1,false,false
+"Shirt","Enfants Riches Déprimés","Destroyed Band Logo Tee","White","L",7,"Heavyweight cotton with screen-printed logo and intentional distress",280.00,1,false,false
+"Shirt","Undercover","Scab Graphic T-shirt","White","M",8,"Distressed 'Scab' print with raw hem detailing",320.00,1,false,false
+"Shirt","Number (n)ine","Destroyed Flannel Shirt","Red/black","L",8,"Vintage-inspired flannel with ripped details",600.00,1,false,false
+"Shirt","Raf Simons","Rs Logo Long Sleeve","Navy","M",9,"Oversized fit with contrast logo taping",450.00,1,false,false
+"Pants","Dior Homme","Slim-fit Biker Jeans","Black","32x32",9,"Waxed denim with leather knee panels",1200.00,1,false,false
+"Pants","Helmut Lang","Bondage Pants","Black","34x30",8,"Leather pants with strap detailing",780.00,1,false,false
+"Pants","Yohji Yamamoto","Wide-leg Trousers","Charcoal","34x34",9,"Wool blend trousers with dramatic drape",850.00,1,false,false
+"Pants","Junya Watanabe","Patchwork Denim","Multi","32x34",7,"Distressed denim with patchwork and embroidery",670.00,1,false,false
+"Pants","Issey Miyake","Pleated Trousers","Beige","S",9,"Tech fabric with signature pleats",420.00,1,false,false
+"Shoes","Rick Owens","Drkshdw Ramones","Black","10",9,"High-top sneakers with crepe sole",550.00,1,false,false
+"Shoes","Maison Margiela","Replica Tabi Boots","White","9",8,"Split-toe ankle boots in white leather",890.00,1,false,false
+"Shoes","Visvim","Fbt Shaman Folk","Brown","10",9,"Moccasin-style shoes with elk leather",950.00,1,false,false
+"Shoes","Balenciaga","Speed Trainer","Black","11",9,"Stretch-knit sneakers with elastic cuff",750.00,1,false,false
+"Shoes","Undercover","Grace Lace-up Boots","White","10",8,"Chunky sole boots with lace-up closure",720.00,1,false,false
+"Shoes","Saint Laurent","Wyatt Boots","Black","9.5",8,"Chelsea boots with harness detailing",990.00,1,false,false
+"Bag","Prada","Nylon Belt Bag","Black","One Size",9,"Re-edition 2000 nylon with logo plaque",950.00,1,false,false
+"Jacket","Enfants Riches Déprimés","Distressed Denim Jacket","Blue","L",8,"Acid wash denim with heavy distressing",850.00,1,false,false
+"Jacket","Raf Simons","Consumed Parka","Olive","M",9,"Longline parka with multiple pockets",2200.00,1,false,false
+"Jacket","Yohji Yamamoto","Asymmetric Drape Blazer","Black","L",8,"Wool blazer with peak lapels",1500.00,1,false,false
+"Jacket","Sacai","Double-layered Denim","Blue/black","M",8,"Deconstructed two-layer jacket",890.00,1,false,false
+"Jacket","Number (n)ine","A Closing Echo Leather","Black","M",9,"Lambskin jacket with distressed finish",2400.00,1,false,false
+"Jacket","Kapital","Century Denim","Indigo","L",8,"Sashiko-stitched denim jacket",680.00,1,false,false
+"Jacket","Comme Des Garçons","Homme Plus Blazer","Navy","M",9,"Deconstructed asymmetric blazer",1200.00,1,false,false
+"Sweater","Comme Des Garçons","Play Striped","Navy/white","M",9,"Striped sweater with heart logo",450.00,1,false,false
+"Sweater","Bape","Shark Hoodie","Camo","L",7,"Camouflage hoodie with shark face",380.00,1,false,false
+"Sweater","Vetements","Metal Logo Hoodie","Gray","XL",8,"Oversized with metal lettering",650.00,1,false,false
