@@ -35,7 +35,7 @@ public class ClothingInventoryGUI {
     private JButton newTradeButton;
     private static final String[] PRESET_CATEGORIES = {
             "", "", "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket",
-            "Sweater", "Socks", "Shorts", "Scarf", "", ""
+            "Sweater", "Socks", "Shorts", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather", "", ""
     };
     private JLabel totalLabel;
     private double totalPrice = 0.0;
@@ -113,13 +113,62 @@ public class ClothingInventoryGUI {
         totalLabel.setForeground(Color.WHITE);
         sidePanel.add(totalLabel);
 
-        String[] buttonLabels = {"Mark Sold", "Mark Cancelled", "Add to Total", "Clear Total", "Copy Total", "Quick Edit Price", "New Trade", "Export to CSV", "Reset Item Statuses"};
+        JPanel buttonGridPanel = new JPanel(new GridLayout(0, 2, 10, 10));
+        buttonGridPanel.setBackground(new Color(47, 49, 54));
+        buttonGridPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        buttonGridPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 20, 0));
+
+        String[] buttonLabels = {
+                "Mark Sold", "Mark Cancelled", "Add to Total", "Clear Total",
+                "Copy Total", "Quick Edit Price", "Export to CSV", "Reset Item Statuses",
+                "New Trade"
+        };
         for (String label : buttonLabels) {
             JButton button = new JButton(label);
-            button.setAlignmentX(Component.CENTER_ALIGNMENT);
+            button.setFocusPainted(false);
+            button.setFont(new Font("Arial", Font.BOLD, 12));
+            button.setForeground(Color.WHITE);
+            button.setBackground(suggestColor(label));
+            button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+            button.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    button.setBackground(button.getBackground().brighter());
+                }
+
+                public void mouseExited(MouseEvent e) {
+                    button.setBackground(suggestColor(label));
+                }
+            });
+
             button.addActionListener(e -> handleSideButtonAction(label));
-            sidePanel.add(button);
+            buttonGridPanel.add(button);
         }
+
+        sidePanel.add(buttonGridPanel);
+
+        JButton addItemButton = new JButton("Create New Clothing Item");
+        addItemButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        addItemButton.setBackground(new Color(88, 101, 242));
+        addItemButton.setForeground(Color.WHITE);
+        addItemButton.setFont(new Font("Arial", Font.BOLD, 16));
+        addItemButton.setFocusPainted(false);
+        addItemButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        addItemButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        addItemButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addItemButton.setBackground(new Color(100, 110, 255));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addItemButton.setBackground(new Color(88, 101, 242));
+            }
+        });
+
+        addItemButton.addActionListener(e -> addItemDialog(null, -1, -1));
+        sidePanel.add(Box.createVerticalStrut(30));
+        sidePanel.add(addItemButton);
+
 
         confirmButton = new JButton("CONFIRM");
         confirmButton.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -140,7 +189,7 @@ public class ClothingInventoryGUI {
         totalLabel.setText("Total: $0.00");
     }
     private void copyTotalToClipboard() {
-        String totalText = totalLabel.getText(); // e.g., "Total: $980.00"
+        String totalText = totalLabel.getText();
         StringSelection selection = new StringSelection(totalText);
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(selection, null);
@@ -197,8 +246,8 @@ public class ClothingInventoryGUI {
 
         gbc.gridwidth = 1;
 
-        String[] labels = {"Category:", "Brand:", "Name:", "Color:", "Size:", "Condition (1-10):", "Description:", "Price:", "Initial Stock:", "Purchase Price:"};
-        JTextField[] fields = {categoryField, brandField, nameField, colorField, sizeField, conditionField, descriptionField, priceField, stockField, purchasePriceField};
+        String[] labels = {"Category:", "Brand:", "Name:", "Color:", "Size:", "Condition (1-10):", "Description:", "Stock:", "Price:", "Purchase Price:"};
+        JTextField[] fields = {categoryField, brandField, nameField, colorField, sizeField, conditionField, descriptionField, stockField, priceField, purchasePriceField};
 
         for (int i = 0; i < labels.length; i++) {
             gbc.gridx = 0;
@@ -380,6 +429,27 @@ public class ClothingInventoryGUI {
         dialog.add(jlabel);
         dialog.add(field);
     }
+
+    private Color suggestColor(String label) {
+        switch (label) {
+            case "Mark Sold":
+            case "Add to Total":
+            case "Copy Total":
+                return new Color(0, 153, 76); // green
+            case "Mark Cancelled":
+            case "Clear Total":
+            case "Reset Item Statuses":
+                return new Color(204, 0, 0); // red
+            case "Quick Edit Price":
+            case "Export to CSV":
+                return new Color(88, 101, 242); // blue
+            case "New Trade":
+                return new Color(255, 140, 0); // orange
+            default:
+                return new Color(88, 101, 242);
+        }
+    }
+
 
     private void refreshInventoryDisplay() {
         panel.removeAll();
@@ -957,48 +1027,48 @@ public static void main(String[] args) {
     ClothingInventory inventory = new ClothingInventory(PRESET_CATEGORIES.length, 30);
 
 
-    inventory.autoAddItem("Shirt", "Chrome Hearts", "CH Plus Logo T-Shirt", "Black", "M", 9, "Oversized black cotton T-shirt with silver CH Plus logo", 350.00, 1);
-    inventory.autoAddItem("Shirt", "Enfants Riches Déprimés", "Destroyed Band Logo Tee", "White", "L", 7, "Heavyweight cotton with screen-printed logo and intentional distress", 280.00, 1);
-    inventory.autoAddItem("Shirt", "Undercover", "Scab Graphic T-Shirt", "White", "M", 8, "Distressed 'Scab' print with raw hem detailing", 320.00, 1);
-    inventory.autoAddItem("Shirt", "Number (N)ine", "Destroyed Flannel Shirt", "Red/Black", "L", 8, "Vintage-inspired flannel with ripped details", 600.00, 1);
-    inventory.autoAddItem("Shirt", "Raf Simons", "RS Logo Long Sleeve", "Navy", "M", 9, "Oversized fit with contrast logo taping", 450.00, 1);
+        inventory.autoAddItem("Shirt", "Chrome Hearts", "CH Plus Logo T-Shirt", "Black", "M", 9, "Oversized black cotton T-shirt with silver CH Plus logo", 350.00, 1, 200.00);
+        inventory.autoAddItem("Shirt", "Enfants Riches Déprimés", "Destroyed Band Logo Tee", "White", "L", 7, "Heavyweight cotton with screen-printed logo and intentional distress", 280.00, 1, 160.00);
+        inventory.autoAddItem("Shirt", "Undercover", "Scab Graphic T-Shirt", "White", "M", 8, "Distressed 'Scab' print with raw hem detailing", 320.00, 1, 180.00);
+        inventory.autoAddItem("Shirt", "Number (N)ine", "Destroyed Flannel Shirt", "Red/Black", "L", 8, "Vintage-inspired flannel with ripped details", 600.00, 1, 350.00);
+        inventory.autoAddItem("Shirt", "Raf Simons", "RS Logo Long Sleeve", "Navy", "M", 9, "Oversized fit with contrast logo taping", 450.00, 1, 250.00);
 
-    inventory.autoAddItem("Pants", "Dior Homme", "Slim-Fit Biker Jeans", "Black", "32x32", 9, "Waxed denim with leather knee panels", 1200.00, 1);
-    inventory.autoAddItem("Pants", "Helmut Lang", "Bondage Pants", "Black", "34x30", 8, "Leather pants with strap detailing", 780.00, 1);
-    inventory.autoAddItem("Pants", "Yohji Yamamoto", "Wide-Leg Trousers", "Charcoal", "34x34", 9, "Wool blend trousers with dramatic drape", 850.00, 1);
-    inventory.autoAddItem("Pants", "Junya Watanabe", "Patchwork Denim", "Multi", "32x34", 7, "Distressed denim with patchwork and embroidery", 670.00, 1);
-    inventory.autoAddItem("Pants", "Issey Miyake", "Pleated Trousers", "Beige", "S", 9, "Tech fabric with signature pleats", 420.00, 1);
+        inventory.autoAddItem("Pants", "Dior Homme", "Slim-Fit Biker Jeans", "Black", "32x32", 9, "Waxed denim with leather knee panels", 1200.00, 1, 700.00);
+        inventory.autoAddItem("Pants", "Helmut Lang", "Bondage Pants", "Black", "34x30", 8, "Leather pants with strap detailing", 780.00, 1, 400.00);
+        inventory.autoAddItem("Pants", "Yohji Yamamoto", "Wide-Leg Trousers", "Charcoal", "34x34", 9, "Wool blend trousers with dramatic drape", 850.00, 1, 500.00);
+        inventory.autoAddItem("Pants", "Junya Watanabe", "Patchwork Denim", "Multi", "32x34", 7, "Distressed denim with patchwork and embroidery", 670.00, 1, 390.00);
+        inventory.autoAddItem("Pants", "Issey Miyake", "Pleated Trousers", "Beige", "S", 9, "Tech fabric with signature pleats", 420.00, 1, 220.00);
 
-    inventory.autoAddItem("Shoes", "Rick Owens", "DRKSHDW Ramones", "Black", "10", 9, "High-top sneakers with crepe sole", 550.00, 1);
-    inventory.autoAddItem("Shoes", "Maison Margiela", "Replica Tabi Boots", "White", "9", 8, "Split-toe ankle boots in white leather", 890.00, 1);
-    inventory.autoAddItem("Shoes", "Visvim", "FBT Shaman Folk", "Brown", "10", 9, "Moccasin-style shoes with elk leather", 950.00, 1);
-    inventory.autoAddItem("Shoes", "Balenciaga", "Speed Trainer", "Black", "11", 9, "Stretch-knit sneakers with elastic cuff", 750.00, 1);
-    inventory.autoAddItem("Shoes", "Undercover", "Grace Lace-Up Boots", "White", "10", 8, "Chunky sole boots with lace-up closure", 720.00, 1);
+        inventory.autoAddItem("Shoes", "Rick Owens", "DRKSHDW Ramones", "Black", "10", 9, "High-top sneakers with crepe sole", 550.00, 1, 300.00);
+        inventory.autoAddItem("Shoes", "Maison Margiela", "Replica Tabi Boots", "White", "9", 8, "Split-toe ankle boots in white leather", 890.00, 1, 500.00);
+        inventory.autoAddItem("Shoes", "Visvim", "FBT Shaman Folk", "Brown", "10", 9, "Moccasin-style shoes with elk leather", 950.00, 1, 600.00);
+        inventory.autoAddItem("Shoes", "Balenciaga", "Speed Trainer", "Black", "11", 9, "Stretch-knit sneakers with elastic cuff", 750.00, 1, 400.00);
+        inventory.autoAddItem("Shoes", "Undercover", "Grace Lace-Up Boots", "White", "10", 8, "Chunky sole boots with lace-up closure", 720.00, 1, 420.00);
 
-    inventory.autoAddItem("Jacket", "Enfants Riches Déprimés", "Distressed Denim Jacket", "Blue", "L", 8, "Acid wash denim with heavy distressing", 850.00, 1);
-    inventory.autoAddItem("Jacket", "Raf Simons", "Consumed Parka", "Olive", "M", 9, "Longline parka with multiple pockets", 2200.00, 1);
-    inventory.autoAddItem("Jacket", "Yohji Yamamoto", "Asymmetric Drape Blazer", "Black", "L", 8, "Wool blazer with peak lapels", 1500.00, 1);
-    inventory.autoAddItem("Jacket", "Sacai", "Double-Layered Denim", "Blue/Black", "M", 8, "Deconstructed two-layer jacket", 890.00, 1);
-    inventory.autoAddItem("Jacket", "Number (N)ine", "A Closing Echo Leather", "Black", "M", 9, "Lambskin jacket with distressed finish", 2400.00, 1);
+        inventory.autoAddItem("Jacket", "Enfants Riches Déprimés", "Distressed Denim Jacket", "Blue", "L", 8, "Acid wash denim with heavy distressing", 850.00, 1, 500.00);
+        inventory.autoAddItem("Jacket", "Raf Simons", "Consumed Parka", "Olive", "M", 9, "Longline parka with multiple pockets", 2200.00, 1, 1300.00);
+        inventory.autoAddItem("Jacket", "Yohji Yamamoto", "Asymmetric Drape Blazer", "Black", "L", 8, "Wool blazer with peak lapels", 1500.00, 1, 900.00);
+        inventory.autoAddItem("Jacket", "Sacai", "Double-Layered Denim", "Blue/Black", "M", 8, "Deconstructed two-layer jacket", 890.00, 1, 550.00);
+        inventory.autoAddItem("Jacket", "Number (N)ine", "A Closing Echo Leather", "Black", "M", 9, "Lambskin jacket with distressed finish", 2400.00, 1, 1500.00);
 
-    inventory.autoAddItem("Bag", "Prada", "Nylon Belt Bag", "Black", "One Size", 9, "Re-edition 2000 nylon with logo plaque", 950.00, 1);
-    inventory.autoAddItem("Accessories", "Vivienne Westwood", "Orb Choker", "Gold", "One Size", 10, "Gold-plated choker with orb pendant", 320.00, 1);
-    inventory.autoAddItem("Accessories", "Alexander McQueen", "Skull Scarf", "Black/Silver", "One Size", 9, "Silk twill skull print scarf", 250.00, 1);
-    inventory.autoAddItem("Accessories", "Off-White", "Arrow Belt", "Yellow/Black", "120cm", 9, "Industrial yellow belt with metal details", 200.00, 1);
+        inventory.autoAddItem("Bag", "Prada", "Nylon Belt Bag", "Black", "One Size", 9, "Re-edition 2000 nylon with logo plaque", 950.00, 1, 500.00);
+        inventory.autoAddItem("Accessories", "Vivienne Westwood", "Orb Choker", "Gold", "One Size", 10, "Gold-plated choker with orb pendant", 320.00, 1, 180.00);
+        inventory.autoAddItem("Accessories", "Alexander McQueen", "Skull Scarf", "Black/Silver", "One Size", 9, "Silk twill skull print scarf", 250.00, 1, 140.00);
+        inventory.autoAddItem("Accessories", "Off-White", "Arrow Belt", "Yellow/Black", "120cm", 9, "Industrial yellow belt with metal details", 200.00, 1, 100.00);
 
-    inventory.autoAddItem("Sweater", "Comme des Garçons", "PLAY Striped", "Navy/White", "M", 9, "Striped sweater with heart logo", 450.00, 1);
-    inventory.autoAddItem("Sweater", "Bape", "Shark Hoodie", "Camo", "L", 7, "Camouflage hoodie with shark face", 380.00, 1);
-    inventory.autoAddItem("Sweater", "Vetements", "Metal Logo Hoodie", "Gray", "XL", 8, "Oversized with metal lettering", 650.00, 1);
+        inventory.autoAddItem("Sweater", "Comme des Garçons", "PLAY Striped", "Navy/White", "M", 9, "Striped sweater with heart logo", 450.00, 1, 260.00);
+        inventory.autoAddItem("Sweater", "Bape", "Shark Hoodie", "Camo", "L", 7, "Camouflage hoodie with shark face", 380.00, 1, 220.00);
+        inventory.autoAddItem("Sweater", "Vetements", "Metal Logo Hoodie", "Gray", "XL", 8, "Oversized with metal lettering", 650.00, 1, 390.00);
 
-    inventory.autoAddItem("Jewelry", "Chrome Hearts", "Cemetery Cross Ring", "Silver", "8", 10, "Sterling silver cross motif ring", 1500.00, 1);
-    inventory.autoAddItem("Jewelry", "Chrome Hearts", "Dagger Pendant", "Silver", "One Size", 9, "925 Silver dagger necklace", 1200.00, 1);
+        inventory.autoAddItem("Jewelry", "Chrome Hearts", "Cemetery Cross Ring", "Silver", "8", 10, "Sterling silver cross motif ring", 1500.00, 1, 900.00);
+        inventory.autoAddItem("Jewelry", "Chrome Hearts", "Dagger Pendant", "Silver", "One Size", 9, "925 Silver dagger necklace", 1200.00, 1, 700.00);
 
-    inventory.autoAddItem("Jacket", "Kapital", "Century Denim", "Indigo", "L", 8, "Sashiko-stitched denim jacket", 680.00, 1);
-    inventory.autoAddItem("Shoes", "Saint Laurent", "Wyatt Boots", "Black", "9.5", 8, "Chelsea boots with harness detailing", 990.00, 1);
-    inventory.autoAddItem("Jacket", "Comme des Garçons", "Homme Plus Blazer", "Navy", "M", 9, "Deconstructed asymmetric blazer", 1200.00, 1);
+        inventory.autoAddItem("Jacket", "Kapital", "Century Denim", "Indigo", "L", 8, "Sashiko-stitched denim jacket", 680.00, 1, 400.00);
+        inventory.autoAddItem("Shoes", "Saint Laurent", "Wyatt Boots", "Black", "9.5", 8, "Chelsea boots with harness detailing", 990.00, 1, 600.00);
+        inventory.autoAddItem("Jacket", "Comme des Garçons", "Homme Plus Blazer", "Navy", "M", 9, "Deconstructed asymmetric blazer", 1200.00, 1, 720.00);
 
 
-    new ClothingInventoryGUI(inventory);
+        new ClothingInventoryGUI(inventory);
 
 
     } catch (Exception e) {

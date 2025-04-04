@@ -13,7 +13,7 @@ public class ClothingInventory {
     // Predefined categories
     private static final String[] PRESET_CATEGORIES = {
             "", "",
-            "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Socks", "Shorts", "Scarf",
+            "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Socks", "Shorts", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather",
             "", ""
     };
 
