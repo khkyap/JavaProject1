@@ -1,8 +1,6 @@
 import java.util.Scanner;
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ClothingInventory {
     private ClothingItem[][] inventory;
@@ -10,7 +8,7 @@ public class ClothingInventory {
     private int cols;
     private Scanner scanner;
 
-    // Predefined categories
+    // clothing categories
     private static final String[] PRESET_CATEGORIES = {
             "", "",
             "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Socks", "Shorts", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather",
@@ -24,41 +22,39 @@ public class ClothingInventory {
         this.scanner = new Scanner(System.in);
     }
 
-    // Method to manually add an item at a specific position
+    // for adding items to specific location
     public void manualAddItem(String category, String brand, String name, String color1, String size, int condition, String description, double price) {
         System.out.println("Input row, then input column");
         int row = scanner.nextInt();
         int col = scanner.nextInt();
 
-        // Normalize and validate the category
+        // validating category
         category = normalizeCategoryName(category);
         if (!isValidCategory(category)) {
             System.out.println("Invalid category: " + category);
             return;
         }
 
-        // Add the item to the inventory
+        // adding item to category
         inventory[row][col] = new ClothingItem(category, brand, name, color1, size, condition, description, price);
         System.out.println("Item added successfully!");
     }
 
-    // Method to automatically add an item to the appropriate category row
+    // automatically adds items to the right category
     public void autoAddItem(String category, String brand, String name, String color1, String size, int condition, String description, double price, int stock, double purchasePrice) {
-        // Normalize and validate the category
+
         category = normalizeCategoryName(category);
         if (!isValidCategory(category)) {
             System.out.println("Invalid category: " + category);
             return;
         }
 
-        // Find the row for the category
         int row = getCategoryRow(category);
         if (row == -1) {
             System.out.println("No space available to add the item.");
             return;
         }
 
-        // Find the first empty column in the row
         for (int col = 0; col < cols; col++) {
             if (inventory[row][col] == null) {
                 inventory[row][col] = new ClothingItem(category, brand, name, color1, size, condition, description, price, stock, purchasePrice);
@@ -70,13 +66,11 @@ public class ClothingInventory {
         System.out.println("No space available in category row: " + category);
     }
 
-    // Helper method to normalize category names (trim and capitalize)
     private String normalizeCategoryName(String category) {
         if (category == null || category.isEmpty()) {
             return category;
         }
 
-        // Capitalize the first letter of each word
         StringBuilder result = new StringBuilder();
         String[] words = category.trim().split("\\s+");
         for (String word : words) {
@@ -89,7 +83,8 @@ public class ClothingInventory {
         return result.toString().trim();
     }
 
-    // Helper method to validate if a category exists in PRESET_CATEGORIES
+
+    // important so that i dont have invisible invalid clothing items
     private boolean isValidCategory(String category) {
         for (String presetCategory : PRESET_CATEGORIES) {
             if (presetCategory.equalsIgnoreCase(category)) {
@@ -99,17 +94,15 @@ public class ClothingInventory {
         return false;
     }
 
-    // Helper method to get the row index for a category
     private int getCategoryRow(String category) {
         for (int i = 0; i < PRESET_CATEGORIES.length; i++) {
             if (PRESET_CATEGORIES[i].equalsIgnoreCase(category)) {
-                return i - 2; // Adjust for the offset in PRESET_CATEGORIES
+                return i - 2;
             }
         }
-        return -1; // Category not found
+        return -1;
     }
 
-    // Existing methods (unchanged)
     public int getRows() {
         return rows;
     }

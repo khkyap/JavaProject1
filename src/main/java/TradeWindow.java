@@ -2,8 +2,6 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -15,6 +13,7 @@ class TradeWindow extends JDialog {
     private JPanel[] theirSlots = new JPanel[5];
     private JPanel[] ourSlots = new JPanel[5];
 
+    // my tradewindow constructor
     public TradeWindow(JFrame frame, ClothingInventoryGUI parent) {
         super(frame, "Trade Manager", true);
         this.parentGUI = parent;
@@ -110,6 +109,8 @@ class TradeWindow extends JDialog {
         return slotPanel;
     }
 
+
+    // dialog box for choosing trade item
     private void showSlotSelectionDialog(int slotIndex, ClothingItem[] items) {
         Object[] options = {"Select Item", "Add Cash"};
         int choice = JOptionPane.showOptionDialog(this,
@@ -128,6 +129,8 @@ class TradeWindow extends JDialog {
         }
     }
 
+
+    // this is for the cash addons in trades
     private void handleCashInput(int slotIndex, ClothingItem[] items) {
         String amount = JOptionPane.showInputDialog(this, "Enter cash amount:");
         try {
@@ -139,6 +142,8 @@ class TradeWindow extends JDialog {
         }
     }
 
+
+    // keeping everything updated
     private void updateTradeDisplay() {
         updateSideDisplay(theirSlots, theirItems);
         updateSideDisplay(ourSlots, ourItems);
@@ -192,6 +197,8 @@ class TradeWindow extends JDialog {
         ourTotalLabel.setText("Our Total: $" + String.format("%.2f", calculateTotal(ourItems)));
     }
 
+
+    // used for calculating profits
     private double calculateTotal(ClothingItem[] items) {
         return Arrays.stream(items)
                 .filter(Objects::nonNull)

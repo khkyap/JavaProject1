@@ -1,8 +1,4 @@
 import java.util.Scanner;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import java.util.Arrays;
-import java.util.Objects;
 
 public class ClothingItem {
     private double purchasePrice;
@@ -50,6 +46,8 @@ public class ClothingItem {
                 category, name, size, price);
     }
 
+
+    // for manually typing in a clothing item
     public ClothingItem(Scanner scanner) {
         System.out.println("Enter details for the new ClothingItem:");
 
@@ -80,6 +78,8 @@ public class ClothingItem {
         scanner.nextLine();
     }
 
+
+    // way too many constructors
     public ClothingItem(String category, String brand, String name, String color1, String size, int condition, String description, double price, int stock, double purchasePrice) {
         this.category = capitalizeWords(category);
         this.brand = capitalizeWords(brand);

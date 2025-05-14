@@ -1,6 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.util.Arrays;
 import java.awt.event.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +32,7 @@ public class ClothingInventoryGUI {
     private static final int MAX_DISPLAY_CATEGORIES = 5;
     private static final int MAX_DISPLAY_ITEMS = 10;
     private JButton newTradeButton;
-    private static final String[] PRESET_CATEGORIES = {
+    private static final String[] PRESET_CATEGORIES = { // adjustable at any time to add new stuff, but other class needs to be updated also
             "", "", "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket",
             "Sweater", "Socks", "Shorts", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather", "", ""
     };
@@ -53,6 +52,8 @@ public class ClothingInventoryGUI {
         createGUI();
     }
 
+
+    // long way to create UI entirely from Swing/JFrame, has multiple panels, category header, buttons
     private void createGUI() {
         frame = new JFrame("Clothing Inventory");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -60,6 +61,8 @@ public class ClothingInventoryGUI {
         frame.setLayout(new BorderLayout());
         frame.getContentPane().setBackground(new Color(54, 57, 63));
 
+
+        // navigation buttons
         categoryHeaders = new JLabel[MAX_DISPLAY_CATEGORIES];
         leftArrowButton = createArrowButton("<", e -> navigateCategories(-1));
         rightArrowButton = createArrowButton(">", e -> navigateCategories(1));
@@ -93,6 +96,8 @@ public class ClothingInventoryGUI {
         panel.setBackground(new Color(54, 57, 63));
         refreshInventoryDisplay();
 
+
+        // vertical navigation system for the columns of clothingItems
         JPanel navigationPanel = new JPanel(new BorderLayout());
         navigationPanel.setBackground(new Color(54, 57, 63));
         upArrowButton = createArrowButton("▲", e -> navigateItems(-1));
@@ -118,6 +123,8 @@ public class ClothingInventoryGUI {
         buttonGridPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         buttonGridPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 20, 0));
 
+
+        // creation of all the side buttons
         String[] buttonLabels = {
                 "Mark Sold", "Mark Cancelled", "Add to Total", "Clear Total",
                 "Copy Total", "Quick Edit Price", "Export to CSV", "Reset Item Statuses",
@@ -147,6 +154,8 @@ public class ClothingInventoryGUI {
 
         sidePanel.add(buttonGridPanel);
 
+
+        // more fancy, formatted button creation for large clothing item button at bottom right
         JButton addItemButton = new JButton("Create New Clothing Item");
         addItemButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
         addItemButton.setBackground(new Color(88, 101, 242));
@@ -300,6 +309,8 @@ public class ClothingInventoryGUI {
         }
     }
 
+
+    // top right financial panel that handles monetary value display and net worth
     private void createFinancialPanel(JPanel sidePanel) {
         JPanel financePanel = new JPanel();
         financePanel.setLayout(new BoxLayout(financePanel, BoxLayout.Y_AXIS));
@@ -352,6 +363,7 @@ public class ClothingInventoryGUI {
         totalProfitLabel.setText(String.format("Total Profit: $%.2f", totalProfit));
     }
 
+    // calculates the total value of inventory by adding the value of unsold, non-cancelled items
     private double calculateInventoryValue() {
         double total = 0;
         for(int row = 0; row < inventory.getRows(); row++) {
@@ -365,6 +377,7 @@ public class ClothingInventoryGUI {
         return total;
     }
 
+    // creates and returns a JTextField formatted for displaying financial values
     private JTextField createFinanceField(double value) {
         JTextField field = new JTextField(String.format("%.2f", value));
         field.setBackground(new Color(54, 57, 63));
@@ -373,18 +386,20 @@ public class ClothingInventoryGUI {
         field.setBorder(BorderFactory.createLineBorder(new Color(88, 101, 242)));
         return field;
     }
+
+    // opens a dialog displaying financial data (assets and debts) for user editing
     private void showFinanceDialog() {
         JDialog dialog = new JDialog(frame, "Financial Details", true);
         dialog.setLayout(new GridLayout(0, 2, 10, 5));
         dialog.getContentPane().setBackground(new Color(47, 49, 54));
 
-        // Assets
+        // assets
         JTextField boaField = createFinanceField(financialData.getBankOfAmerica());
         JTextField paypalField = createFinanceField(financialData.getPaypal());
         JTextField fidelityField = createFinanceField(financialData.getFidelity());
         JTextField cashField = createFinanceField(financialData.getPaperCash());
 
-        // Debts
+        // debts
         JTextField bankDebtField = createFinanceField(financialData.getBankDebt());
         JTextField paypalDebtField = createFinanceField(financialData.getPaypalDebt());
 
@@ -395,6 +410,7 @@ public class ClothingInventoryGUI {
         addField(dialog, "Bank Debt:", bankDebtField);
         addField(dialog, "PayPal Debt:", paypalDebtField);
 
+        // saves the entered financial data
         JButton saveButton = new JButton("Save");
         saveButton.setBackground(new Color(88, 101, 242));
         saveButton.setForeground(Color.WHITE);
@@ -423,6 +439,7 @@ public class ClothingInventoryGUI {
         dialog.setVisible(true);
     }
 
+    // adds a label and its field to the finance dialog
     private void addField(JDialog dialog, String label, JTextField field) {
         JLabel jlabel = new JLabel(label);
         jlabel.setForeground(Color.WHITE);
@@ -430,6 +447,7 @@ public class ClothingInventoryGUI {
         dialog.add(field);
     }
 
+    // returns a color based on the label (used for button color coding in UI)
     private Color suggestColor(String label) {
         switch (label) {
             case "Mark Sold":
@@ -450,7 +468,7 @@ public class ClothingInventoryGUI {
         }
     }
 
-
+// refreshes the inventory display by updating the category and item panels
     private void refreshInventoryDisplay() {
         panel.removeAll();
         updateCategoryHeaders();
@@ -483,7 +501,7 @@ public class ClothingInventoryGUI {
 
                 ClothingItem item = inventory.getItem(currentCategoryIndex - 2, column);
                 if (item != null) {
-                    // Stock Panel (LEFT)
+                    // leftside stock panel
                     JPanel stockPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
                     stockPanel.setBackground(new Color(47, 49, 54));
 
@@ -515,7 +533,7 @@ public class ClothingInventoryGUI {
                     stockPanel.add(incrementButton);
                     itemPanel.add(stockPanel, BorderLayout.WEST);
 
-                    // Text Panel (CENTER)
+                    // center text panel
                     JPanel textPanel = new JPanel();
                     textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
                     textPanel.setBackground(new Color(47, 49, 54));
@@ -586,7 +604,7 @@ public class ClothingInventoryGUI {
         panel.repaint();
     }
 
-
+    // creates a stock button (for increasing/decreasing stock of an item)
     private JButton createStockButton(String text, Color color) {
         JButton button = new JButton(text);
         button.setFont(new Font("Segoe UI Emoji", Font.BOLD, 16));
@@ -610,6 +628,7 @@ public class ClothingInventoryGUI {
 
         return button;
     }
+    // updates the category headers, highlights the center category and handles empty categories.
     private void updateCategoryHeaders() {
         int centerIndex = categoryOffset + MAX_DISPLAY_CATEGORIES/2;
         for (int i = 0; i < MAX_DISPLAY_CATEGORIES; i++) {
@@ -651,7 +670,7 @@ public class ClothingInventoryGUI {
         }
     }
 
-
+    // prompts user to enter the sold for price
     private void markSoldDialog() {
         int currentCategoryIndex = categoryOffset + MAX_DISPLAY_CATEGORIES / 2;
         if (currentCategoryIndex >= 2 && currentCategoryIndex < PRESET_CATEGORIES.length - 2) {
@@ -853,7 +872,6 @@ public class ClothingInventoryGUI {
             return;
         }
 
-        // Create dialog panel
         JPanel dialogPanel = new JPanel(new GridBagLayout());
         dialogPanel.setBackground(new Color(180, 180, 180));
         GridBagConstraints gbc = new GridBagConstraints();
@@ -1027,6 +1045,8 @@ public static void main(String[] args) {
     ClothingInventory inventory = new ClothingInventory(PRESET_CATEGORIES.length, 30);
 
 
+
+    // tons of testing clothing items all based on real brands
         inventory.autoAddItem("Shirt", "Chrome Hearts", "CH Plus Logo T-Shirt", "Black", "M", 9, "Oversized black cotton T-shirt with silver CH Plus logo", 350.00, 1, 200.00);
         inventory.autoAddItem("Shirt", "Enfants Riches Déprimés", "Destroyed Band Logo Tee", "White", "L", 7, "Heavyweight cotton with screen-printed logo and intentional distress", 280.00, 1, 160.00);
         inventory.autoAddItem("Shirt", "Undercover", "Scab Graphic T-Shirt", "White", "M", 8, "Distressed 'Scab' print with raw hem detailing", 320.00, 1, 180.00);
