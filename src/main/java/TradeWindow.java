@@ -4,6 +4,7 @@ import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.List;
 
 class TradeWindow extends JDialog {
     private final ClothingInventoryGUI parentGUI;
@@ -13,48 +14,36 @@ class TradeWindow extends JDialog {
     private JPanel[] theirSlots = new JPanel[5];
     private JPanel[] ourSlots = new JPanel[5];
 
-    // my tradewindow constructor
     public TradeWindow(JFrame frame, ClothingInventoryGUI parent) {
         super(frame, "Trade Manager", true);
         this.parentGUI = parent;
-
-        setSize(1000, 500);
+        setSize(1000, 600);
         setLayout(new BorderLayout());
         getContentPane().setBackground(new Color(54, 57, 63));
 
         JPanel tradeContainer = new JPanel(new GridLayout(2, 1, 10, 10));
         tradeContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JPanel theirSide = createTradeSide("Their Offer", theirItems, theirSlots);
-        JPanel ourSide = createTradeSide("Our Offer", ourItems, ourSlots);
-
-        tradeContainer.add(theirSide);
-        tradeContainer.add(ourSide);
+        tradeContainer.add(createTradeSide("Their Offer", theirItems, theirSlots));
+        tradeContainer.add(createTradeSide("Our Offer", ourItems, ourSlots));
 
         JPanel controlPanel = new JPanel();
         controlPanel.setBackground(new Color(47, 49, 54));
-
-        JPanel profitPanel = new JPanel(new GridLayout(0, 1));
-        profitPanel.setBackground(new Color(47, 49, 54));
         JButton calculateButton = new JButton("Calculate Profit");
-        JTextArea profitDisplay = new JTextArea();
+        JTextArea profitDisplay = new JTextArea(3, 20);
+        profitDisplay.setBackground(new Color(47, 49, 54));
+        profitDisplay.setForeground(Color.WHITE);
+        profitDisplay.setEditable(false);
+
         calculateButton.addActionListener(e -> {
             double ourTotal = calculateTotal(ourItems);
             double theirTotal = calculateTotal(theirItems);
             double profit = theirTotal - ourTotal;
-            double margin = (profit / ourTotal) * 100;
-
-            String analysis = String.format(
-                    "Dollar Profit: $%.2f\n" +
-                            "Profit Margin: %.1f%%\n" +
-                            "Value Ratio: %.2f:1",
-                    profit, margin, theirTotal/ourTotal
-            );
-            profitDisplay.setText(analysis);
+            double margin = (ourTotal > 0) ? (profit / ourTotal) * 100 : 0;
+            profitDisplay.setText(String.format("Dollar Profit: $%.2f\nMargin: %.1f%%\nRatio: %.2f:1", profit, margin, (ourTotal > 0) ? theirTotal/ourTotal : 0));
         });
+
         controlPanel.add(calculateButton);
         controlPanel.add(profitDisplay);
-
         add(tradeContainer, BorderLayout.CENTER);
         add(controlPanel, BorderLayout.SOUTH);
     }
@@ -62,7 +51,6 @@ class TradeWindow extends JDialog {
     private JPanel createTradeSide(String title, ClothingItem[] items, JPanel[] slots) {
         JPanel sidePanel = new JPanel(new BorderLayout());
         sidePanel.setBackground(new Color(54, 57, 63));
-
         JLabel header = new JLabel(title, SwingConstants.CENTER);
         header.setForeground(Color.WHITE);
         header.setFont(new Font("Arial", Font.BOLD, 16));
@@ -70,11 +58,8 @@ class TradeWindow extends JDialog {
 
         JPanel slotsPanel = new JPanel(new GridLayout(1, 5, 10, 0));
         slotsPanel.setBackground(new Color(54, 57, 63));
-        slotsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
         for (int i = 0; i < 5; i++) {
             slots[i] = createTradeSlot(i, items);
-            slots[i].setPreferredSize(new Dimension(150, 150));
             slotsPanel.add(slots[i]);
         }
 
@@ -83,7 +68,6 @@ class TradeWindow extends JDialog {
         JLabel totalLabel = new JLabel("Total: $0.00");
         totalLabel.setForeground(Color.WHITE);
         totalPanel.add(totalLabel);
-
         if (title.equals("Their Offer")) theirTotalLabel = totalLabel;
         else ourTotalLabel = totalLabel;
 
@@ -97,40 +81,22 @@ class TradeWindow extends JDialog {
         slotPanel.setBackground(new Color(47, 49, 54));
         slotPanel.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 2));
         slotPanel.setPreferredSize(new Dimension(150, 150));
-
         JButton addButton = new JButton("+");
-        addButton.setPreferredSize(new Dimension(150, 150));
         addButton.setFont(new Font("Arial", Font.BOLD, 24));
         addButton.setBackground(new Color(88, 101, 242));
         addButton.setForeground(Color.WHITE);
         addButton.addActionListener(e -> showSlotSelectionDialog(slotIndex, items));
         slotPanel.add(addButton, BorderLayout.CENTER);
-
         return slotPanel;
     }
 
-
-    // dialog box for choosing trade item
     private void showSlotSelectionDialog(int slotIndex, ClothingItem[] items) {
         Object[] options = {"Select Item", "Add Cash"};
-        int choice = JOptionPane.showOptionDialog(this,
-                "Add to trade slot:",
-                "Trade Slot Content",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                options,
-                options[0]);
-
-        if (choice == 0) {
-            new ItemSelectionDialog(this, slotIndex, items).setVisible(true);
-        } else if (choice == 1) {
-            handleCashInput(slotIndex, items);
-        }
+        int choice = JOptionPane.showOptionDialog(this, "Add to trade slot:", "Trade Slot Content", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        if (choice == 0) new ItemSelectionDialog(this, slotIndex, items).setVisible(true);
+        else if (choice == 1) handleCashInput(slotIndex, items);
     }
 
-
-    // this is for the cash addons in trades
     private void handleCashInput(int slotIndex, ClothingItem[] items) {
         String amount = JOptionPane.showInputDialog(this, "Enter cash amount:");
         try {
@@ -142,8 +108,6 @@ class TradeWindow extends JDialog {
         }
     }
 
-
-    // keeping everything updated
     private void updateTradeDisplay() {
         updateSideDisplay(theirSlots, theirItems);
         updateSideDisplay(ourSlots, ourItems);
@@ -152,43 +116,31 @@ class TradeWindow extends JDialog {
 
     private void updateSideDisplay(JPanel[] slots, ClothingItem[] items) {
         for (int i = 0; i < slots.length; i++) {
-            JPanel slotPanel = slots[i];
-            slotPanel.removeAll();
+            slots[i].removeAll();
             final int index = i;
-
             if (items[i] != null) {
                 JPanel contentPanel = new JPanel(new BorderLayout());
                 contentPanel.setBackground(new Color(47, 49, 54));
-
                 JTextArea itemInfo = new JTextArea(items[i].getTradeDisplayText());
                 itemInfo.setEditable(false);
                 itemInfo.setForeground(Color.WHITE);
                 itemInfo.setBackground(new Color(47, 49, 54));
-                itemInfo.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
                 contentPanel.add(itemInfo, BorderLayout.CENTER);
-
                 JButton removeButton = new JButton("X");
                 removeButton.setBackground(new Color(200, 0, 0));
                 removeButton.setForeground(Color.WHITE);
-                removeButton.addActionListener(e -> {
-                    items[index] = null;
-                    updateTradeDisplay();
-                });
+                removeButton.addActionListener(e -> { items[index] = null; updateTradeDisplay(); });
                 contentPanel.add(removeButton, BorderLayout.NORTH);
-
-                slotPanel.add(contentPanel);
+                slots[i].add(contentPanel);
             } else {
                 JButton addButton = new JButton("+");
-                addButton.setPreferredSize(new Dimension(150, 150));
-                addButton.setFont(new Font("Arial", Font.BOLD, 24));
                 addButton.setBackground(new Color(88, 101, 242));
                 addButton.setForeground(Color.WHITE);
                 addButton.addActionListener(e -> showSlotSelectionDialog(index, items));
-                slotPanel.add(addButton);
+                slots[i].add(addButton);
             }
-
-            slotPanel.revalidate();
-            slotPanel.repaint();
+            slots[i].revalidate();
+            slots[i].repaint();
         }
     }
 
@@ -197,13 +149,8 @@ class TradeWindow extends JDialog {
         ourTotalLabel.setText("Our Total: $" + String.format("%.2f", calculateTotal(ourItems)));
     }
 
-
-    // used for calculating profits
     private double calculateTotal(ClothingItem[] items) {
-        return Arrays.stream(items)
-                .filter(Objects::nonNull)
-                .mapToDouble(ClothingItem::getPrice)
-                .sum();
+        return Arrays.stream(items).filter(Objects::nonNull).mapToDouble(ClothingItem::getPrice).sum();
     }
 
     private class ItemSelectionDialog extends JDialog {
@@ -216,72 +163,41 @@ class TradeWindow extends JDialog {
             super(parent, "Select Item", true);
             this.targetSlot = slotIndex;
             this.targetItems = items;
-
             setSize(600, 400);
             setLayout(new BorderLayout());
-            getContentPane().setBackground(new Color(54, 57, 63));
-
-            JPanel searchPanel = new JPanel();
-            searchPanel.setBackground(new Color(47, 49, 54));
             searchField.getDocument().addDocumentListener(new DocumentListener() {
                 public void insertUpdate(DocumentEvent e) { filterItems(); }
                 public void removeUpdate(DocumentEvent e) { filterItems(); }
                 public void changedUpdate(DocumentEvent e) { filterItems(); }
             });
-            searchPanel.add(searchField);
-            add(searchPanel, BorderLayout.NORTH);
-
-            JScrollPane scrollPane = new JScrollPane(itemsPanel);
-            scrollPane.getViewport().setBackground(new Color(54, 57, 63));
-            add(scrollPane, BorderLayout.CENTER);
-
+            add(searchField, BorderLayout.NORTH);
+            add(new JScrollPane(itemsPanel), BorderLayout.CENTER);
             loadAllItems();
             setLocationRelativeTo(parent);
         }
 
         private void loadAllItems() {
             itemsPanel.removeAll();
-            for(int row = 0; row < parentGUI.getInventory().getRows(); row++) {
-                for(int col = 0; col < parentGUI.getInventory().getCols(); col++) {
-                    ClothingItem currentItem = parentGUI.getInventory().getItem(row, col);
-                    if(currentItem != null && !currentItem.isCash() && !isItemInTrade(currentItem)) {
-                        addItemToPanel(currentItem);
-                    }
+            List<ClothingItem> inventory = parentGUI.getInventory().getInventory();
+            for (ClothingItem item : inventory) {
+                if (item.isActive() && !item.isCash() && !isItemInTrade(item)) {
+                    addItemToPanel(item);
                 }
             }
             itemsPanel.revalidate();
             itemsPanel.repaint();
         }
+
         private boolean isItemInTrade(ClothingItem target) {
-            for(ClothingItem item : targetItems) {
-                if(item != null && item.equals(target)) return true;
-            }
-            return Arrays.stream(TradeWindow.this.theirItems)
-                    .anyMatch(item -> item != null && item.equals(target));
+            return Arrays.stream(TradeWindow.this.theirItems).anyMatch(item -> item == target) || Arrays.stream(TradeWindow.this.ourItems).anyMatch(item -> item == target);
         }
+
         private void addItemToPanel(ClothingItem item) {
             JPanel itemPanel = new JPanel(new BorderLayout());
-            itemPanel.setBackground(new Color(47, 49, 54));
-            itemPanel.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
-
-            JLabel infoLabel = new JLabel(
-                    "<html>" + item.getName() +
-                            "<br/>Size: " + item.getSize() +
-                            "<br/>$" + String.format("%.2f", item.getPrice()) + "</html>"
-            );
-            infoLabel.setForeground(Color.WHITE);
-            itemPanel.add(infoLabel, BorderLayout.CENTER);
-
+            itemPanel.add(new JLabel("<html>" + item.getName() + "<br/>$" + item.getPrice() + "</html>"), BorderLayout.CENTER);
             JButton selectButton = new JButton("Select");
-            selectButton.setBackground(new Color(88, 101, 242));
-            selectButton.setForeground(Color.WHITE);
-            selectButton.addActionListener(e -> {
-                targetItems[targetSlot] = item;
-                TradeWindow.this.updateTradeDisplay();
-                dispose();
-            });
+            selectButton.addActionListener(e -> { targetItems[targetSlot] = item; updateTradeDisplay(); dispose(); });
             itemPanel.add(selectButton, BorderLayout.EAST);
-
             itemsPanel.add(itemPanel);
         }
 
@@ -292,16 +208,11 @@ class TradeWindow extends JDialog {
                     JPanel panel = (JPanel) comp;
                     boolean match = false;
                     for (Component child : panel.getComponents()) {
-                        if (child instanceof JLabel) {
-                            JLabel label = (JLabel) child;
-                            match = label.getText().toLowerCase().contains(query);
-                        }
+                        if (child instanceof JLabel) match = ((JLabel) child).getText().toLowerCase().contains(query);
                     }
                     panel.setVisible(match);
                 }
             }
-            itemsPanel.revalidate();
-            itemsPanel.repaint();
         }
     }
 }
