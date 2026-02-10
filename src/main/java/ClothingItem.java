@@ -14,6 +14,10 @@ public class ClothingItem implements Comparable<ClothingItem> {
     private double price;
     private boolean sold = false;
     private boolean cancelled = false;
+    private boolean incoming = false;
+
+    public boolean isIncoming() { return incoming; }
+    public void setIncoming(boolean incoming) { this.incoming = incoming; }
 
     public ClothingItem() {}
 
