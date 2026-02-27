@@ -1,5 +1,6 @@
+import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
-
+import java.time.LocalDate;
 public class ClothingItem implements Comparable<ClothingItem> {
     private double purchasePrice;
     private double profit;
@@ -15,6 +16,7 @@ public class ClothingItem implements Comparable<ClothingItem> {
     private boolean sold = false;
     private boolean cancelled = false;
     private boolean incoming = false;
+    private LocalDate dateAdded;
 
     public boolean isIncoming() { return incoming; }
     public void setIncoming(boolean incoming) { this.incoming = incoming; }
@@ -34,6 +36,7 @@ public class ClothingItem implements Comparable<ClothingItem> {
         this.stock = stock;
         this.purchasePrice = purchasePrice;
         this.profit = 0;
+        this.dateAdded = LocalDate.now();
     }
 
     public ClothingItem(String category, String brand, String name, String color1, String size,
@@ -64,6 +67,7 @@ public class ClothingItem implements Comparable<ClothingItem> {
         this.stock = scanner.nextInt();
         System.out.print("Enter purchase price: ");
         this.purchasePrice = scanner.nextDouble();
+        this.dateAdded = LocalDate.now();
         scanner.nextLine();
     }
 
@@ -100,6 +104,31 @@ public class ClothingItem implements Comparable<ClothingItem> {
             }
         }
         return result.toString().trim();
+    }
+
+    public LocalDate getDateAdded() {
+        return dateAdded;
+    }
+
+    public void setDateAdded(LocalDate dateAdded) {
+        this.dateAdded = dateAdded;
+    }
+
+    public long getDaysInInventory() {
+        if (this.dateAdded == null) {
+            return 0;
+        }
+        return ChronoUnit.DAYS.between(this.dateAdded, LocalDate.now());
+    }
+
+    public double getRecommendedDiscountPrice() {
+        long daysOld = getDaysInInventory();
+        if (daysOld > 90) {
+            return this.getPrice() * 0.80;
+        } else if (daysOld > 180) {
+            return this.getPrice() * 0.60;
+        }
+        return this.getPrice();
     }
 
     public boolean isSold() { return sold; }

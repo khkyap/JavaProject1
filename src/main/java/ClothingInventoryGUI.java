@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.Clipboard;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.io.IOException;
@@ -17,53 +15,42 @@ import java.awt.event.ActionListener;
 public class ClothingInventoryGUI {
     private ClothingInventory inventory;
     private FinancialData financialData = new FinancialData();
-    private DefaultListModel<String> categoryListModel = new DefaultListModel<>();
     private Stack<InventoryAction> undoStack = new Stack<>();
     private Map<ClothingItem, Timer> pendingSoldTimers = new HashMap<>();
     private JPanel soldArchiveListPanel;
-    private JLabel netWorthLabel, cashBalanceLabel, inventoryValueLabel;
+    private JLabel netWorthLabel, inventoryValueLabel;
     private JFrame frame;
     private JPanel panel;
     private JTabbedPane tabbedPane;
-    private JPanel activePanel;
-    private JPanel soldPanel;
-    private JButton leftArrowButton, rightArrowButton, upArrowButton, downArrowButton;
-    private JLabel[] categoryHeaders;
     private String currentCategory = PRESET_CATEGORIES[0];
-    private int categoryOffset = 0;
     private int itemOffset = 0;
     private Timer currentAnimationTimer;
-    private static final int MAX_DISPLAY_CATEGORIES = 5;
+    private String currentSortMethod = "Newest First";
     private static final int MAX_DISPLAY_ITEMS = 10;
     private static final String[] PRESET_CATEGORIES = {
-            "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather"
+            "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather", "Hoodie"
     };
-    private JLabel totalLabel;
-    private double totalPrice = 0.0;
-    private double totalProfit = 0.0;
     private JLabel totalProfitLabel;
     private Map<JCheckBox, ClothingItem> checkBoxItemMap;
     private JButton confirmButton;
-    private Set<ClothingItem> addedItems = new HashSet<>();
 
     public ClothingInventoryGUI(ClothingInventory inventory) {
-        UIManager.put("OptionPane.background", new Color(54, 57, 63));
-        UIManager.put("Panel.background", new Color(54, 57, 63));
-        UIManager.put("OptionPane.messageForeground", Color.WHITE);
-        UIManager.put("TextField.background", new Color(40, 43, 48));
-        UIManager.put("TextField.foreground", Color.WHITE);
-        UIManager.put("TextField.caretForeground", Color.WHITE);
-        UIManager.put("ComboBox.background", new Color(40, 43, 48));
-        UIManager.put("ComboBox.foreground", Color.WHITE);
-        UIManager.put("Button.background", new Color(88, 101, 242));
-        UIManager.put("Button.foreground", Color.WHITE);
-        UIManager.put("Label.foreground", Color.WHITE);
+            UIManager.put("OptionPane.background", new Color(54, 57, 63));
+            UIManager.put("Panel.background", new Color(54, 57, 63));
+            UIManager.put("OptionPane.messageForeground", Color.WHITE);
+            UIManager.put("TextField.background", new Color(40, 43, 48));
+            UIManager.put("TextField.foreground", Color.WHITE);
+            UIManager.put("TextField.caretForeground", Color.WHITE);
+            UIManager.put("ComboBox.background", new Color(40, 43, 48));
+            UIManager.put("ComboBox.foreground", Color.WHITE);
+            UIManager.put("Button.background", new Color(88, 101, 242));
+            UIManager.put("Button.foreground", Color.WHITE);
+            UIManager.put("Label.foreground", Color.WHITE);
 
-        this.inventory = inventory;
-        this.checkBoxItemMap = new HashMap<>();
-        createGUI();
-
-    }
+            this.inventory = inventory;
+            this.checkBoxItemMap = new HashMap<>();
+            createGUI();
+        }
 
     private void createGUI() {
         frame = new JFrame("Clothing Inventory");
@@ -107,16 +94,18 @@ public class ClothingInventoryGUI {
 
         // TAB SETUP
         tabbedPane = new JTabbedPane();
-        tabbedPane.setBackground(new Color(40, 43, 48));
+        tabbedPane.setBackground(new Color(40, 43, 48)); // Darker tab header background
         tabbedPane.setForeground(Color.WHITE);
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
+        // Create Dark Panels for the Tabs
         JPanel incomingPanel = new JPanel();
-        incomingPanel.setBackground(new Color(54, 57, 63));
+        incomingPanel.setBackground(new Color(54, 57, 63)); // Matches main background
 
         JPanel soldPanel = new JPanel();
-        soldPanel.setBackground(new Color(54, 57, 63));
+        soldPanel.setBackground(new Color(54, 57, 63)); // Matches main background
 
+        // Add listener to refresh logic
         tabbedPane.addChangeListener(e -> {
             itemOffset = 0;
             refreshInventoryDisplay();
@@ -130,7 +119,7 @@ public class ClothingInventoryGUI {
         tabbedPane.addTab("SOLD ARCHIVE", new JScrollPane(soldPanel) {
             { getViewport().setBackground(new Color(54, 57, 63)); setBorder(null); }
         });
-        // 3. Side Panel
+
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setBackground(new Color(47, 49, 54));
@@ -170,7 +159,31 @@ public class ClothingInventoryGUI {
         searchPanel.add(searchField);
         sidePanel.add(searchPanel);
         sidePanel.add(Box.createVerticalStrut(15));
+        JLabel sortLabel = new JLabel("SORT INVENTORY");
+        sortLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        sortLabel.setForeground(new Color(185, 187, 190));
+        sortLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        String[] sortOptions = {"Newest First", "Oldest First", "Price: High to Low", "Price: Low to High"};
+        JComboBox<String> sortComboBox = new JComboBox<>(sortOptions);
+        sortComboBox.setMaximumSize(new Dimension(300, 35));
+        sortComboBox.setBackground(new Color(40, 43, 48));
+        sortComboBox.setForeground(Color.WHITE);
+        sortComboBox.setFocusable(false);
+        sortComboBox.addActionListener(e -> {
+            currentSortMethod = (String) sortComboBox.getSelectedItem();
+            itemOffset = 0;
+            refreshInventoryDisplay();
+        });
+
+        JPanel sortPanel = new JPanel();
+        sortPanel.setLayout(new BoxLayout(sortPanel, BoxLayout.Y_AXIS));
+        sortPanel.setBackground(new Color(47, 49, 54));
+        sortPanel.add(sortLabel);
+        sortPanel.add(Box.createVerticalStrut(5));
+        sortPanel.add(sortComboBox);
+        sidePanel.add(sortPanel);
+        sidePanel.add(Box.createVerticalStrut(15));
         // REFINED BUTTON GRID
         JPanel buttonGridPanel = new JPanel(new GridLayout(0, 2, 8, 8));
         buttonGridPanel.setBackground(new Color(47, 49, 54));
@@ -180,7 +193,7 @@ public class ClothingInventoryGUI {
                 "Mark Sold",       "Mark Delivered",
                 "Stats Overview",  "Duplicate Item",
                 "Master View",     "Export CSV",
-                "Reset Statuses",  "New Trade"
+                "Undo Last Action","New Trade"
         };
 
         for (String label : buttonLabels) {
@@ -251,6 +264,7 @@ public class ClothingInventoryGUI {
 
         List<ClothingItem> catItems = getItemsInCurrentCategory();
 
+        // 1. FILTER FIRST
         int tabIndex = tabbedPane.getSelectedIndex();
         List<ClothingItem> filtered = catItems.stream().filter(item -> {
             if (tabIndex == 0) return !item.isSold() && !item.isIncoming() && !item.isCancelled(); // Active
@@ -258,6 +272,23 @@ public class ClothingInventoryGUI {
             if (tabIndex == 2) return item.isSold(); // Sold
             return false;
         }).collect(Collectors.toList());
+
+        // 2. SORT SECOND
+        filtered.sort((a, b) -> {
+            switch (currentSortMethod) {
+                case "Oldest First":
+                    if(a.getDateAdded() == null || b.getDateAdded() == null) return 0;
+                    return a.getDateAdded().compareTo(b.getDateAdded());
+                case "Price: High to Low":
+                    return Double.compare(b.getPrice(), a.getPrice());
+                case "Price: Low to High":
+                    return Double.compare(a.getPrice(), b.getPrice());
+                case "Newest First":
+                default:
+                    if(a.getDateAdded() == null || b.getDateAdded() == null) return 0;
+                    return b.getDateAdded().compareTo(a.getDateAdded());
+            }
+        });
 
         currentAnimationTimer = new Timer(15, new ActionListener() {
             int count = itemOffset;
@@ -289,11 +320,29 @@ public class ClothingInventoryGUI {
         ));
 
         if (item != null) {
+            boolean isStale = (!item.isSold() && !item.isCancelled() && !item.isIncoming() && item.getDaysInInventory() > 90);
+
+            // Apply warning border if stale
+            if (isStale) {
+                itemPanel.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(255, 165, 0), 1),
+                        BorderFactory.createEmptyBorder(10, 15, 10, 15)
+                ));
+            }
+
             JPanel identityPanel = new JPanel(new GridLayout(2, 1));
             identityPanel.setOpaque(false);
-            JLabel brandLabel = new JLabel(item.getBrand().toUpperCase());
+
+            JLabel brandLabel = new JLabel();
             brandLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            brandLabel.setForeground(Color.WHITE);
+            if (isStale) {
+                brandLabel.setText(item.getBrand().toUpperCase() + " ⚠ STALE (" + item.getDaysInInventory() + "d)");
+                brandLabel.setForeground(new Color(255, 165, 0));
+            } else {
+                brandLabel.setText(item.getBrand().toUpperCase());
+                brandLabel.setForeground(Color.WHITE);
+            }
+
             JLabel nameLabel = new JLabel(item.getName());
             nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
             nameLabel.setForeground(new Color(185, 187, 190));
@@ -303,9 +352,16 @@ public class ClothingInventoryGUI {
             JPanel financeMatrix = new JPanel(new GridLayout(1, 4, 20, 0));
             financeMatrix.setOpaque(false);
 
-            JLabel estPriceLabel = new JLabel(String.format("$%.0f", item.getPrice()));
-            estPriceLabel.setForeground(Color.WHITE);
+            JLabel estPriceLabel = new JLabel();
             estPriceLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            if (isStale) {
+                estPriceLabel.setText(String.format("<html><strike>$%.0f</strike> <font color='#00FF7F'>$%.0f</font></html>",
+                        item.getPrice(), item.getRecommendedDiscountPrice()));
+            } else {
+                estPriceLabel.setText(String.format("$%.0f", item.getPrice()));
+                estPriceLabel.setForeground(Color.WHITE);
+            }
+
             estPriceLabel.addMouseListener(new MouseAdapter() {
                 public void mouseClicked(MouseEvent e) { handleInlinePriceEdit(item, estPriceLabel); }
             });
@@ -347,9 +403,9 @@ public class ClothingInventoryGUI {
                 deliverBtn.setBackground(new Color(88, 101, 242));
                 deliverBtn.setForeground(Color.WHITE);
                 deliverBtn.addActionListener(e -> {
-                    item.setIncoming(false); // Move to Active
+                    item.setIncoming(false);
+                    trackUndoAction(new InventoryAction(InventoryAction.Type.EDIT, item, "Incoming"));
                     refreshInventoryDisplay();
-                    JOptionPane.showMessageDialog(frame, "Item moved to Active Inventory");
                 });
                 btnWrapper.add(deliverBtn);
                 itemPanel.add(btnWrapper, BorderLayout.SOUTH);
@@ -427,6 +483,7 @@ public class ClothingInventoryGUI {
                     ClothingItem newItem = new ClothingItem(catField.getText(), brandField.getText(), nameField.getText(), "", "", 10, "", Double.parseDouble(priceField.getText()), Integer.parseInt(stockField.getText()), Double.parseDouble(buyPriceField.getText()));
                     newItem.setIncoming(incomingCheck.isSelected());
                     inventory.addItem(newItem);
+                    trackUndoAction(new InventoryAction(InventoryAction.Type.ADD, newItem, null));
                 } else {
                     existingItem.setCategory(catField.getText());
                     existingItem.setBrand(brandField.getText());
@@ -454,7 +511,38 @@ public class ClothingInventoryGUI {
             case "New Trade": new TradeWindow(frame, this).setVisible(true); break;
             case "Reset Statuses": resetAllItemStatuses(); break;
             case "Duplicate Item": showCheckboxesForAction("Duplicate"); break;
+            case "Undo Last Action": performUndo(); break;
         }
+    }
+
+    private void performUndo() {
+        if (undoStack.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "No recent actions to undo.");
+            return;
+        }
+
+        InventoryAction action = undoStack.pop();
+
+        switch(action.type) {
+            case ADD:
+                inventory.getInventory().remove(action.item);
+                break;
+            case EDIT:
+                if (action.previousValue instanceof Double) {
+                    action.item.setPrice((Double) action.previousValue); // Revert Price
+                } else if (action.previousValue.equals("Incoming")) {
+                    action.item.setIncoming(true); // Revert Delivery
+                }
+                break;
+            case MARK_SOLD:
+                action.item.setSold(false);
+                break;
+            case DELETE:
+                inventory.addItem(action.item);
+                break;
+        }
+        refreshInventoryDisplay();
+        updateFinancialDisplay();
     }
 
     private void filterBySearch(String query) {
@@ -597,11 +685,19 @@ public class ClothingInventoryGUI {
         updateFinancialDisplay();
     }
 
+    private void trackUndoAction(InventoryAction action) {
+        if (undoStack.size() >= 5) {
+            undoStack.removeElementAt(0);
+        }
+        undoStack.push(action);
+    }
+
     private void handleInlinePriceEdit(ClothingItem item, JLabel label) {
         String input = JOptionPane.showInputDialog(frame, "Quick Edit Price:", item.getPrice());
         if (input != null) {
             try {
                 double newPrice = Double.parseDouble(input);
+                trackUndoAction(new InventoryAction(InventoryAction.Type.EDIT, item, item.getPrice()));
                 item.setPrice(newPrice);
                 refreshInventoryDisplay();
                 updateFinancialDisplay();
@@ -630,19 +726,38 @@ public class ClothingInventoryGUI {
     private void finalizeSold(ClothingItem item) {
         pendingSoldTimers.remove(item);
         item.setSold(true);
-        soldArchiveListPanel.add(createSleekItemPanel(item));
         updateFinancialDisplay();
         refreshInventoryDisplay();
     }
 
     private void exportToCSV() {
-        try (PrintWriter writer = new PrintWriter(new FileWriter("inventory.csv"))) {
-            writer.println("Category,Brand,Name,Price,Stock");
+        try (PrintWriter writer = new PrintWriter(new FileWriter("inventory_export.csv"))) {
+            writer.println("Date Added,Category,Brand,Name,Purchase Price,Est. Price,Stock,Days Old,Rec. Discount,Status");
+
             for (ClothingItem item : inventory.getInventory()) {
-                writer.printf("%s,%s,%s,%.2f,%d%n", item.getCategory(), item.getBrand(), item.getName(), item.getPrice(), item.getStock());
+                String status = "ACTIVE";
+                if (item.isSold()) status = "SOLD";
+                else if (item.isCancelled()) status = "CANCELLED";
+                else if (item.isIncoming()) status = "INCOMING";
+
+                writer.printf("%s,%s,%s,%s,%.2f,%.2f,%d,%d,%.2f,%s%n",
+                        item.getDateAdded() != null ? item.getDateAdded().toString() : "N/A",
+                        item.getCategory(),
+                        item.getBrand(),
+                        item.getName(),
+                        item.getPurchasePrice(),
+                        item.getPrice(),
+                        item.getStock(),
+                        item.getDaysInInventory(),
+                        item.getRecommendedDiscountPrice(),
+                        status
+                );
             }
-            JOptionPane.showMessageDialog(frame, "Exported.");
-        } catch (IOException e) { e.printStackTrace(); }
+            JOptionPane.showMessageDialog(frame, "Inventory successfully exported to CSV.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error exporting to CSV: " + e.getMessage());
+        }
     }
 
     private void resetAllItemStatuses() {
@@ -668,14 +783,21 @@ public class ClothingInventoryGUI {
                 .mapToDouble(item -> item.getPrice() - item.getPurchasePrice())
                 .sum();
 
+        double projectedProfit = inventory.getInventory().stream()
+                .filter(item -> !item.isSold() && !item.isCancelled() && !item.isIncoming())
+                .mapToDouble(item -> item.getPrice() - item.getPurchasePrice())
+                .sum();
+
         double totalLiquid = financialData.getTotalAssets() + realizedProfit;
         double netWorth = totalLiquid + currentInvValue - financialData.getTotalDebt();
 
-        inventoryValueLabel.setText("$" + String.format("%.2f", currentInvValue));
+        long soldCount = inventory.getInventory().stream().filter(ClothingItem::isSold).count();
+        long totalCount = inventory.getInventory().size();
+        double turnoverRate = (totalCount == 0) ? 0.0 : ((double) soldCount / totalCount) * 100.0;
 
-        totalProfitLabel.setText("$" + String.format("%.2f", realizedProfit));
-
-        netWorthLabel.setText("$" + String.format("%.2f", netWorth));
+        inventoryValueLabel.setText(String.format("$%.2f (Turnover: %.1f%%)", currentInvValue, turnoverRate));
+        totalProfitLabel.setText(String.format("$%.2f", realizedProfit));
+        netWorthLabel.setText(String.format("$%.2f (Proj: $%.2f)", netWorth, projectedProfit));
     }
 
     private void createFinancialPanel(JPanel sidePanel) {
@@ -707,12 +829,12 @@ public class ClothingInventoryGUI {
         JPanel container = new JPanel(new BorderLayout());
         container.setOpaque(false);
 
-
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 10));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 9));
         titleLabel.setForeground(new Color(185, 187, 190));
+
         JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Monospaced", Font.BOLD, 18));
+        valueLabel.setFont(new Font("Arial", Font.BOLD, 14));
         valueLabel.setForeground(valColor);
 
         container.add(titleLabel, BorderLayout.NORTH);
@@ -725,48 +847,10 @@ public class ClothingInventoryGUI {
         return container;
     }
 
-    private JLabel createModernLabel(String title, String value, Color valColor) {
-        JLabel label = new JLabel("<html><font color='#B9BBBE'>" + title + ":</font> <font color='" +
-                String.format("#%02x%02x%02x", valColor.getRed(), valColor.getGreen(), valColor.getBlue()) +
-                "'>" + value + "</font></html>");
-        label.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        label.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
-        return label;
-    }
-
-    private void navigateCategories(int dir) {
-        categoryOffset = Math.max(0, Math.min(categoryOffset + dir, PRESET_CATEGORIES.length - MAX_DISPLAY_CATEGORIES));
-        itemOffset = 0;
-        refreshInventoryDisplay();
-    }
-
     private void navigateItems(int dir) {
         int listSize = getItemsInCurrentCategory().size();
         itemOffset = Math.max(0, Math.min(itemOffset + dir, Math.max(0, listSize - MAX_DISPLAY_ITEMS)));
         refreshInventoryDisplay();
-    }
-
-    private JButton createArrowButton(String text, ActionListener al) {
-        JButton b = new JButton(text);
-        b.setFont(new Font("SansSerif", Font.BOLD, 18));
-        b.setForeground(new Color(185, 187, 190));
-        b.setContentAreaFilled(false);
-        b.setBorderPainted(false);
-        b.setFocusPainted(false);
-        b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        b.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { b.setForeground(Color.WHITE); }
-            public void mouseExited(MouseEvent e) { b.setForeground(new Color(185, 187, 190)); }
-        });
-
-        b.addActionListener(al);
-        return b;
-    }
-
-    private void copyTotalToClipboard() {
-        StringSelection ss = new StringSelection(totalLabel.getText());
-        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(ss, null);
     }
 
     private Color suggestColor(String label) {
@@ -775,44 +859,6 @@ public class ClothingInventoryGUI {
         return new Color(88, 101, 242);
     }
 
-    private void updateCategoryHeaders() {
-        int center = categoryOffset + MAX_DISPLAY_CATEGORIES / 2;
-        for (int i = 0; i < MAX_DISPLAY_CATEGORIES; i++) {
-            int idx = categoryOffset + i;
-            categoryHeaders[i].setText(idx < PRESET_CATEGORIES.length ? PRESET_CATEGORIES[idx] : "");
-            categoryHeaders[i].setForeground(idx == center ? Color.GREEN : Color.WHITE);
-        }
-    }
-
-    private MouseAdapter createCategoryHeaderListener() {
-        return new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                JLabel src = (JLabel) e.getSource();
-                for (int i = 0; i < categoryHeaders.length; i++) {
-                    if (categoryHeaders[i] == src) {
-                        categoryOffset = Math.max(0, Math.min(categoryOffset + i - MAX_DISPLAY_CATEGORIES / 2, PRESET_CATEGORIES.length - MAX_DISPLAY_CATEGORIES));
-                        itemOffset = 0;
-                        refreshInventoryDisplay();
-                        break;
-                    }
-                }
-            }
-        };
-    }
-
-    private void showCategoryDialog() {
-        String sel = (String) JOptionPane.showInputDialog(frame, "Category:", "Select", JOptionPane.PLAIN_MESSAGE, null, PRESET_CATEGORIES, PRESET_CATEGORIES[0]);
-        if (sel != null) {
-            for (int i = 0; i < PRESET_CATEGORIES.length; i++) {
-                if (PRESET_CATEGORIES[i].equals(sel)) {
-                    categoryOffset = Math.max(0, Math.min(i - MAX_DISPLAY_CATEGORIES / 2, PRESET_CATEGORIES.length - MAX_DISPLAY_CATEGORIES));
-                    itemOffset = 0;
-                    refreshInventoryDisplay();
-                    break;
-                }
-            }
-        }
-    }
 
     public ClothingInventory getInventory() { return inventory; }
 
