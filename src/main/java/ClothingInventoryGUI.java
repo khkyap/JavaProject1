@@ -17,22 +17,26 @@ public class ClothingInventoryGUI {
     private FinancialData financialData = new FinancialData();
     private Stack<InventoryAction> undoStack = new Stack<>();
     private Map<ClothingItem, Timer> pendingSoldTimers = new HashMap<>();
-    private JPanel soldArchiveListPanel;
-    private JLabel netWorthLabel, inventoryValueLabel;
+    private JLabel netWorthLabel, inventoryValueLabel, totalProfitLabel;
     private JFrame frame;
     private JPanel panel;
     private JTabbedPane tabbedPane;
-    private String currentCategory = PRESET_CATEGORIES[0];
+    private String currentCategory = "All";
+    private String currentStatus = "ACTIVE";
     private int itemOffset = 0;
     private Timer currentAnimationTimer;
     private String currentSortMethod = "Newest First";
+    private String currentViewMode = "List";
+
     private static final int MAX_DISPLAY_ITEMS = 10;
     private static final String[] PRESET_CATEGORIES = {
-            "Hat", "Shirt", "Pants", "Shoes", "Bag", "Jacket", "Sweater", "Scarf", "Jewelry", "Accessories", "Outerwear", "Leather", "Hoodie"
+            "All", "Tops", "Bottoms", "Outerwear", "Footwear", "Bags", "Jewelry", "Headwear", "Accessories"
     };
-    private JLabel totalProfitLabel;
+
     private Map<JCheckBox, ClothingItem> checkBoxItemMap;
     private JButton confirmButton;
+    private JTextArea terminalLog;
+    private Set<String> knownBrands = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 
     public ClothingInventoryGUI(ClothingInventory inventory) {
             UIManager.put("OptionPane.background", new Color(54, 57, 63));
@@ -76,49 +80,45 @@ public class ClothingInventoryGUI {
                 for (Component c : categoryRail.getComponents()) if(c instanceof JButton) c.setForeground(new Color(185, 187, 190));
                 catBtn.setForeground(new Color(88, 101, 242));
                 this.currentCategory = cat;
-                this.itemOffset = 0;
                 refreshInventoryDisplay();
             });
             categoryRail.add(catBtn);
         }
 
-        // 2. Central Lists
-        panel = new JPanel(new GridLayout(MAX_DISPLAY_ITEMS, 1, 0, 5));
+        JPanel statusRail = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 5));
+        statusRail.setBackground(new Color(47, 49, 54));
+        statusRail.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(32, 34, 37)));
+
+        String[] statuses = {"ACTIVE", "INCOMING", "SOLD ARCHIVE"};
+        for (String status : statuses) {
+            JButton statBtn = new JButton(status);
+            statBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            statBtn.setForeground(status.equals("ACTIVE") ? Color.WHITE : new Color(114, 118, 125));
+            statBtn.setContentAreaFilled(false);
+            statBtn.setBorderPainted(false);
+            statBtn.setFocusPainted(false);
+            statBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            statBtn.addActionListener(e -> {
+                for (Component c : statusRail.getComponents()) if(c instanceof JButton) c.setForeground(new Color(114, 118, 125));
+                statBtn.setForeground(Color.WHITE);
+                this.currentStatus = status;
+                refreshInventoryDisplay();
+            });
+            statusRail.add(statBtn);
+        }
+
+        JPanel topContainer = new JPanel(new BorderLayout());
+        topContainer.add(categoryRail, BorderLayout.NORTH);
+        topContainer.add(statusRail, BorderLayout.SOUTH);
+
+        panel = new JPanel(new GridLayout(0, 1, 0, 5));
         panel.setBackground(new Color(54, 57, 63));
 
-        JPanel navigationPanel = new JPanel(new BorderLayout());
-        navigationPanel.setBackground(new Color(54, 57, 63));
-        navigationPanel.add(createSlimNavButton("▲", e -> navigateItems(-1)), BorderLayout.NORTH);
-        navigationPanel.add(new JScrollPane(panel), BorderLayout.CENTER);
-        navigationPanel.add(createSlimNavButton("▼", e -> navigateItems(1)), BorderLayout.SOUTH);
-
-        // TAB SETUP
-        tabbedPane = new JTabbedPane();
-        tabbedPane.setBackground(new Color(40, 43, 48)); // Darker tab header background
-        tabbedPane.setForeground(Color.WHITE);
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-        // Create Dark Panels for the Tabs
-        JPanel incomingPanel = new JPanel();
-        incomingPanel.setBackground(new Color(54, 57, 63)); // Matches main background
-
-        JPanel soldPanel = new JPanel();
-        soldPanel.setBackground(new Color(54, 57, 63)); // Matches main background
-
-        // Add listener to refresh logic
-        tabbedPane.addChangeListener(e -> {
-            itemOffset = 0;
-            refreshInventoryDisplay();
-        });
-
-
-        tabbedPane.addTab("ACTIVE INVENTORY", navigationPanel);
-        tabbedPane.addTab("INCOMING", new JScrollPane(incomingPanel) {
-            { getViewport().setBackground(new Color(54, 57, 63)); setBorder(null); }
-        });
-        tabbedPane.addTab("SOLD ARCHIVE", new JScrollPane(soldPanel) {
-            { getViewport().setBackground(new Color(54, 57, 63)); setBorder(null); }
-        });
+        JScrollPane scrollPane = new JScrollPane(panel);
+        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
@@ -129,7 +129,6 @@ public class ClothingInventoryGUI {
         createFinancialPanel(sidePanel);
         sidePanel.add(Box.createVerticalStrut(20));
 
-        // SEARCH BAR (New Feature)
         JLabel searchLabel = new JLabel("SEARCH INVENTORY");
         searchLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
         searchLabel.setForeground(new Color(185, 187, 190));
@@ -144,7 +143,6 @@ public class ClothingInventoryGUI {
                 BorderFactory.createLineBorder(new Color(32, 34, 37)),
                 BorderFactory.createEmptyBorder(5, 10, 5, 10)
         ));
-        // Real-time search
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { filterBySearch(searchField.getText()); }
             public void removeUpdate(DocumentEvent e) { filterBySearch(searchField.getText()); }
@@ -159,6 +157,7 @@ public class ClothingInventoryGUI {
         searchPanel.add(searchField);
         sidePanel.add(searchPanel);
         sidePanel.add(Box.createVerticalStrut(15));
+
         JLabel sortLabel = new JLabel("SORT INVENTORY");
         sortLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
         sortLabel.setForeground(new Color(185, 187, 190));
@@ -172,7 +171,6 @@ public class ClothingInventoryGUI {
         sortComboBox.setFocusable(false);
         sortComboBox.addActionListener(e -> {
             currentSortMethod = (String) sortComboBox.getSelectedItem();
-            itemOffset = 0;
             refreshInventoryDisplay();
         });
 
@@ -184,7 +182,7 @@ public class ClothingInventoryGUI {
         sortPanel.add(sortComboBox);
         sidePanel.add(sortPanel);
         sidePanel.add(Box.createVerticalStrut(15));
-        // REFINED BUTTON GRID
+
         JPanel buttonGridPanel = new JPanel(new GridLayout(0, 2, 8, 8));
         buttonGridPanel.setBackground(new Color(47, 49, 54));
         buttonGridPanel.setMaximumSize(new Dimension(300, 400));
@@ -232,8 +230,8 @@ public class ClothingInventoryGUI {
         actionPanel.add(confirmButton);
         sidePanel.add(actionPanel);
 
-        frame.add(categoryRail, BorderLayout.NORTH);
-        frame.add(tabbedPane, BorderLayout.CENTER);
+        frame.add(topContainer, BorderLayout.NORTH);
+        frame.add(scrollPane, BorderLayout.CENTER);
         frame.add(sidePanel, BorderLayout.EAST);
 
         if (currentCategory == null && PRESET_CATEGORIES.length > 0) currentCategory = PRESET_CATEGORIES[0];
@@ -248,6 +246,10 @@ public class ClothingInventoryGUI {
     }
 
     private List<ClothingItem> getItemsInCurrentCategory() {
+        if (currentCategory.equalsIgnoreCase("All")) {
+            return new ArrayList<>(inventory.getInventory());
+        }
+
         return inventory.getInventory().stream()
                 .filter(item -> item.getCategory().equalsIgnoreCase(currentCategory))
                 .collect(Collectors.toList());
@@ -255,25 +257,19 @@ public class ClothingInventoryGUI {
 
 
     private void refreshInventoryDisplay() {
-        if (currentAnimationTimer != null && currentAnimationTimer.isRunning()) {
-            currentAnimationTimer.stop();
-        }
+        if (currentStatus == null) currentStatus = "ACTIVE"; // Safety check
+
         panel.removeAll();
-        panel.revalidate();
-        panel.repaint();
 
         List<ClothingItem> catItems = getItemsInCurrentCategory();
 
-        // 1. FILTER FIRST
-        int tabIndex = tabbedPane.getSelectedIndex();
         List<ClothingItem> filtered = catItems.stream().filter(item -> {
-            if (tabIndex == 0) return !item.isSold() && !item.isIncoming() && !item.isCancelled(); // Active
-            if (tabIndex == 1) return item.isIncoming() && !item.isCancelled(); // Incoming
-            if (tabIndex == 2) return item.isSold(); // Sold
+            if (currentStatus.equals("ACTIVE")) return !item.isSold() && !item.isIncoming() && !item.isCancelled();
+            if (currentStatus.equals("INCOMING")) return item.isIncoming() && !item.isCancelled();
+            if (currentStatus.equals("SOLD ARCHIVE")) return item.isSold();
             return false;
         }).collect(Collectors.toList());
 
-        // 2. SORT SECOND
         filtered.sort((a, b) -> {
             switch (currentSortMethod) {
                 case "Oldest First":
@@ -290,25 +286,19 @@ public class ClothingInventoryGUI {
             }
         });
 
-        currentAnimationTimer = new Timer(15, new ActionListener() {
-            int count = itemOffset;
-            int displayIndex = 0;
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (displayIndex < MAX_DISPLAY_ITEMS) {
-                    ClothingItem item = (count < filtered.size()) ? filtered.get(count) : null;
-                    JPanel itemPanel = createSleekItemPanel(item);
-                    panel.add(itemPanel);
-                    panel.revalidate();
-                    panel.repaint();
-                    count++;
-                    displayIndex++;
-                } else {
-                    ((Timer)e.getSource()).stop();
-                }
-            }
-        });
-        currentAnimationTimer.start();
+        for (ClothingItem item : filtered) {
+            panel.add(createSleekItemPanel(item));
+        }
+
+        int emptySlots = Math.max(0, 10 - filtered.size());
+        for(int i = 0; i < emptySlots; i++) {
+            JPanel spacer = new JPanel();
+            spacer.setOpaque(false);
+            panel.add(spacer);
+        }
+
+        panel.revalidate();
+        panel.repaint();
     }
 
     private JPanel createSleekItemPanel(ClothingItem item) {
@@ -322,7 +312,6 @@ public class ClothingInventoryGUI {
         if (item != null) {
             boolean isStale = (!item.isSold() && !item.isCancelled() && !item.isIncoming() && item.getDaysInInventory() > 90);
 
-            // Apply warning border if stale
             if (isStale) {
                 itemPanel.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(new Color(255, 165, 0), 1),
@@ -384,7 +373,6 @@ public class ClothingInventoryGUI {
             }
             financeMatrix.add(createStatSubPanel("PROFIT", profitVal, new Color(0, 255, 127)));
 
-            // STATUS BUTTONS
             JPanel btnWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
             btnWrapper.setOpaque(false);
 
@@ -456,8 +444,20 @@ public class ClothingInventoryGUI {
     }
 
     private void addItemDialog(ClothingItem existingItem) {
-        JTextField catField = new JTextField(existingItem != null ? existingItem.getCategory() : "");
-        JTextField brandField = new JTextField(existingItem != null ? existingItem.getBrand() : "");
+        Set<String> knownBrands = inventory.getInventory().stream()
+                .map(ClothingItem::getBrand)
+                .collect(Collectors.toSet());
+        Vector<String> brandList = new Vector<>(knownBrands);
+        Collections.sort(brandList);
+
+        JComboBox<String> catBox = new JComboBox<>(PRESET_CATEGORIES);
+        catBox.setEditable(true);
+        if (existingItem != null) catBox.setSelectedItem(existingItem.getCategory());
+
+        JComboBox<String> brandBox = new JComboBox<>(brandList);
+        brandBox.setEditable(true);
+        if (existingItem != null) brandBox.setSelectedItem(existingItem.getBrand());
+
         JTextField nameField = new JTextField(existingItem != null ? existingItem.getName() : "");
         JTextField priceField = new JTextField(existingItem != null ? String.valueOf(existingItem.getPrice()) : "0.0");
         JTextField stockField = new JTextField(existingItem != null ? String.valueOf(existingItem.getStock()) : "1");
@@ -466,8 +466,8 @@ public class ClothingInventoryGUI {
         if(existingItem != null) incomingCheck.setSelected(existingItem.isIncoming());
 
         Object[] message = {
-                "Category:", catField,
-                "Brand:", brandField,
+                "Category:", catBox,
+                "Brand:", brandBox,
                 "Name:", nameField,
                 "Price:", priceField,
                 "Stock:", stockField,
@@ -479,14 +479,17 @@ public class ClothingInventoryGUI {
 
         if (option == JOptionPane.OK_OPTION) {
             try {
+                String selectedCat = (catBox.getSelectedItem() != null) ? catBox.getSelectedItem().toString() : "";
+                String selectedBrand = (brandBox.getSelectedItem() != null) ? brandBox.getSelectedItem().toString() : "";
+
                 if (existingItem == null) {
-                    ClothingItem newItem = new ClothingItem(catField.getText(), brandField.getText(), nameField.getText(), "", "", 10, "", Double.parseDouble(priceField.getText()), Integer.parseInt(stockField.getText()), Double.parseDouble(buyPriceField.getText()));
+                    ClothingItem newItem = new ClothingItem(selectedCat, selectedBrand, nameField.getText(), "", "", 10, "", Double.parseDouble(priceField.getText()), Integer.parseInt(stockField.getText()), Double.parseDouble(buyPriceField.getText()));
                     newItem.setIncoming(incomingCheck.isSelected());
                     inventory.addItem(newItem);
                     trackUndoAction(new InventoryAction(InventoryAction.Type.ADD, newItem, null));
                 } else {
-                    existingItem.setCategory(catField.getText());
-                    existingItem.setBrand(brandField.getText());
+                    existingItem.setCategory(selectedCat);
+                    existingItem.setBrand(selectedBrand);
                     existingItem.setName(nameField.getText());
                     existingItem.setPrice(Double.parseDouble(priceField.getText()));
                     existingItem.setStock(Integer.parseInt(stockField.getText()));
@@ -499,6 +502,56 @@ public class ClothingInventoryGUI {
                 JOptionPane.showMessageDialog(frame, "Invalid input.");
             }
         }
+    }
+
+    private void showBrandsListDialog() {
+        JDialog brandDialog = new JDialog(frame, "Lifetime Brand Analytics", true);
+        brandDialog.setSize(600, 400);
+        brandDialog.setLocationRelativeTo(frame);
+        brandDialog.getContentPane().setBackground(new Color(54, 57, 63));
+
+        Map<String, Double> brandSales = new HashMap<>();
+        Map<String, Integer> brandVolume = new HashMap<>();
+
+        for (ClothingItem item : inventory.getInventory()) {
+            String b = item.getBrand();
+            brandVolume.put(b, brandVolume.getOrDefault(b, 0) + 1);
+            if (item.isSold()) {
+                brandSales.put(b, brandSales.getOrDefault(b, 0.0) + item.getPrice());
+            } else {
+                brandSales.putIfAbsent(b, 0.0);
+            }
+        }
+
+        String[] columns = {"Brand", "Items Handled", "Lifetime Revenue"};
+        Object[][] data = new Object[brandSales.size()][3];
+
+        int i = 0;
+        for (Map.Entry<String, Double> entry : brandSales.entrySet()) {
+            data[i][0] = entry.getKey();
+            data[i][1] = brandVolume.get(entry.getKey());
+            data[i][2] = String.format("$%.2f", entry.getValue());
+            i++;
+        }
+
+        JTable table = new JTable(data, columns);
+        table.setBackground(new Color(47, 49, 54));
+        table.setForeground(Color.WHITE);
+        table.setGridColor(new Color(32, 34, 37));
+        table.setFillsViewportHeight(true);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.setRowHeight(25);
+
+        table.getTableHeader().setBackground(new Color(32, 34, 37));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        brandDialog.add(scrollPane);
+        brandDialog.setVisible(true);
     }
 
     private void handleSideButtonAction(String action) {
@@ -529,9 +582,9 @@ public class ClothingInventoryGUI {
                 break;
             case EDIT:
                 if (action.previousValue instanceof Double) {
-                    action.item.setPrice((Double) action.previousValue); // Revert Price
+                    action.item.setPrice((Double) action.previousValue);
                 } else if (action.previousValue.equals("Incoming")) {
-                    action.item.setIncoming(true); // Revert Delivery
+                    action.item.setIncoming(true);
                 }
                 break;
             case MARK_SOLD:
@@ -847,6 +900,86 @@ public class ClothingInventoryGUI {
         return container;
     }
 
+    private JPanel createTerminalPanel() {
+        JPanel terminalContainer = new JPanel(new BorderLayout());
+        terminalContainer.setBackground(new Color(47, 49, 54));
+        terminalContainer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(10, 0, 0, 0),
+                BorderFactory.createLineBorder(new Color(32, 34, 37), 1)
+        ));
+
+        JLabel termLabel = new JLabel(" SYSTEM LOG");
+        termLabel.setFont(new Font("Monospaced", Font.BOLD, 10));
+        termLabel.setForeground(new Color(114, 118, 125));
+        terminalContainer.add(termLabel, BorderLayout.NORTH);
+
+        terminalLog = new JTextArea(6, 20);
+        terminalLog.setBackground(new Color(30, 32, 36));
+        terminalLog.setForeground(new Color(0, 255, 127));
+        terminalLog.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        terminalLog.setEditable(false);
+        terminalLog.setLineWrap(true);
+        terminalLog.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(terminalLog);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        terminalContainer.add(scrollPane, BorderLayout.CENTER);
+
+        return terminalContainer;
+    }
+
+    private void logAction(String message) {
+        if (terminalLog != null) {
+            terminalLog.append("> " + message + "\n");
+            terminalLog.setCaretPosition(terminalLog.getDocument().getLength());
+        }
+    }
+
+    private void showBrandLedger() {
+        JDialog ledgerDialog = new JDialog(frame, "Brand Ledger & Lifetime Sales", true);
+        ledgerDialog.setSize(600, 400);
+        ledgerDialog.setLocationRelativeTo(frame);
+        ledgerDialog.getContentPane().setBackground(new Color(54, 57, 63));
+
+        Map<String, Double> lifetimeSales = new HashMap<>();
+        Map<String, Integer> itemsHandled = new HashMap<>();
+
+        for (ClothingItem item : inventory.getInventory()) {
+            String brand = item.getBrand().toUpperCase();
+            itemsHandled.put(brand, itemsHandled.getOrDefault(brand, 0) + 1);
+            if (item.isSold()) {
+                lifetimeSales.put(brand, lifetimeSales.getOrDefault(brand, 0.0) + item.getPrice());
+            }
+        }
+
+        String[] columns = {"Brand", "Total Items Handled", "Lifetime Gross Sales"};
+        Object[][] data = new Object[knownBrands.size()][3];
+
+        int i = 0;
+        for (String brand : knownBrands) {
+            data[i][0] = brand.toUpperCase();
+            data[i][1] = itemsHandled.getOrDefault(brand.toUpperCase(), 0);
+            data[i][2] = String.format("$%.2f", lifetimeSales.getOrDefault(brand.toUpperCase(), 0.0));
+            i++;
+        }
+
+        JTable table = new JTable(data, columns);
+        table.setBackground(new Color(47, 49, 54));
+        table.setForeground(Color.WHITE);
+        table.setGridColor(new Color(32, 34, 37));
+        table.setFillsViewportHeight(true);
+
+        table.getTableHeader().setBackground(new Color(32, 34, 37));
+        table.getTableHeader().setForeground(Color.WHITE);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        ledgerDialog.add(scrollPane);
+        ledgerDialog.setVisible(true);
+    }
+
     private void navigateItems(int dir) {
         int listSize = getItemsInCurrentCategory().size();
         itemOffset = Math.max(0, Math.min(itemOffset + dir, Math.max(0, listSize - MAX_DISPLAY_ITEMS)));
@@ -866,45 +999,54 @@ public class ClothingInventoryGUI {
         try {
             ClothingInventory inventory = new ClothingInventory();
 
-            inventory.addItem(new ClothingItem("Shirt", "Chrome Hearts", "CH Plus Logo T-Shirt", "Black", "M", 9, "Oversized black cotton T-shirt with silver CH Plus logo", 350.00, 1, 200.00));
-            inventory.addItem(new ClothingItem("Shirt", "Enfants Riches Déprimés", "Destroyed Band Logo Tee", "White", "L", 7, "Heavyweight cotton with screen-printed logo and intentional distress", 280.00, 1, 160.00));
-            inventory.addItem(new ClothingItem("Shirt", "Undercover", "Scab Graphic T-Shirt", "White", "M", 8, "Distressed 'Scab' print with raw hem detailing", 320.00, 1, 180.00));
-            inventory.addItem(new ClothingItem("Shirt", "Number (N)ine", "Destroyed Flannel Shirt", "Red/Black", "L", 8, "Vintage-inspired flannel with ripped details", 600.00, 1, 350.00));
-            inventory.addItem(new ClothingItem("Shirt", "Raf Simons", "RS Logo Long Sleeve", "Navy", "M", 9, "Oversized fit with contrast logo taping", 450.00, 1, 250.00));
+            inventory.addItem(new ClothingItem("Tops", "Chrome Hearts", "CH Plus Logo T-Shirt", "Black", "M", 9, "", 350.00, 1, 200.00));
+            inventory.addItem(new ClothingItem("Tops", "Enfants Riches Déprimés", "Destroyed Band Logo Tee", "White", "L", 7, "", 280.00, 1, 160.00));
+            inventory.addItem(new ClothingItem("Tops", "Undercover", "Scab Graphic T-Shirt", "White", "M", 8, "", 320.00, 1, 180.00));
+            inventory.addItem(new ClothingItem("Tops", "Number (N)ine", "Destroyed Flannel Shirt", "Red/Black", "L", 8, "", 600.00, 1, 350.00));
+            inventory.addItem(new ClothingItem("Tops", "Raf Simons", "RS Logo Long Sleeve", "Navy", "M", 9, "", 450.00, 1, 250.00));
 
-            inventory.addItem(new ClothingItem("Pants", "Dior Homme", "Slim-Fit Biker Jeans", "Black", "32x32", 9, "Waxed denim with leather knee panels", 1200.00, 1, 700.00));
-            inventory.addItem(new ClothingItem("Pants", "Helmut Lang", "Bondage Pants", "Black", "34x30", 8, "Leather pants with strap detailing", 780.00, 1, 400.00));
-            inventory.addItem(new ClothingItem("Pants", "Yohji Yamamoto", "Wide-Leg Trousers", "Charcoal", "34x34", 9, "Wool blend trousers with dramatic drape", 850.00, 1, 500.00));
-            inventory.addItem(new ClothingItem("Pants", "Junya Watanabe", "Patchwork Denim", "Multi", "32x34", 7, "Distressed denim with patchwork and embroidery", 670.00, 1, 390.00));
-            inventory.addItem(new ClothingItem("Pants", "Issey Miyake", "Pleated Trousers", "Beige", "S", 9, "Tech fabric with signature pleats", 420.00, 1, 220.00));
+            inventory.addItem(new ClothingItem("Bottoms", "Dior Homme", "Slim-Fit Biker Jeans", "Black", "32x32", 9, "", 1200.00, 1, 700.00));
+            inventory.addItem(new ClothingItem("Bottoms", "Helmut Lang", "Bondage Pants", "Black", "34x30", 8, "", 780.00, 1, 400.00));
+            inventory.addItem(new ClothingItem("Bottoms", "Yohji Yamamoto", "Wide-Leg Trousers", "Charcoal", "34x34", 9, "", 850.00, 1, 500.00));
+            inventory.addItem(new ClothingItem("Bottoms", "Junya Watanabe", "Patchwork Denim", "Multi", "32x34", 7, "", 670.00, 1, 390.00));
+            inventory.addItem(new ClothingItem("Bottoms", "Issey Miyake", "Pleated Trousers", "Beige", "S", 9, "", 420.00, 1, 220.00));
 
-            inventory.addItem(new ClothingItem("Shoes", "Rick Owens", "DRKSHDW Ramones", "Black", "10", 9, "High-top sneakers with crepe sole", 550.00, 1, 300.00));
-            inventory.addItem(new ClothingItem("Shoes", "Maison Margiela", "Replica Tabi Boots", "White", "9", 8, "Split-toe ankle boots in white leather", 890.00, 1, 500.00));
-            inventory.addItem(new ClothingItem("Shoes", "Visvim", "FBT Shaman Folk", "Brown", "10", 9, "Moccasin-style shoes with elk leather", 950.00, 1, 600.00));
-            inventory.addItem(new ClothingItem("Shoes", "Balenciaga", "Speed Trainer", "Black", "11", 9, "Stretch-knit sneakers with elastic cuff", 750.00, 1, 400.00));
-            inventory.addItem(new ClothingItem("Shoes", "Undercover", "Grace Lace-Up Boots", "White", "10", 8, "Chunky sole boots with lace-up closure", 720.00, 1, 420.00));
+            inventory.addItem(new ClothingItem("Footwear", "Rick Owens", "DRKSHDW Ramones", "Black", "10", 9, "", 550.00, 1, 300.00));
+            inventory.addItem(new ClothingItem("Footwear", "Maison Margiela", "Replica Tabi Boots", "White", "9", 8, "", 890.00, 1, 500.00));
+            inventory.addItem(new ClothingItem("Footwear", "Visvim", "FBT Shaman Folk", "Brown", "10", 9, "", 950.00, 1, 600.00));
+            inventory.addItem(new ClothingItem("Footwear", "Balenciaga", "Speed Trainer", "Black", "11", 9, "", 750.00, 1, 400.00));
+            inventory.addItem(new ClothingItem("Footwear", "Undercover", "Grace Lace-Up Boots", "White", "10", 8, "", 720.00, 1, 420.00));
 
-            inventory.addItem(new ClothingItem("Jacket", "Enfants Riches Déprimés", "Distressed Denim Jacket", "Blue", "L", 8, "Acid wash denim with heavy distressing", 850.00, 1, 500.00));
-            inventory.addItem(new ClothingItem("Jacket", "Raf Simons", "Consumed Parka", "Olive", "M", 9, "Longline parka with multiple pockets", 2200.00, 1, 1300.00));
-            inventory.addItem(new ClothingItem("Jacket", "Yohji Yamamoto", "Asymmetric Drape Blazer", "Black", "L", 8, "Wool blazer with peak lapels", 1500.00, 1, 900.00));
-            inventory.addItem(new ClothingItem("Jacket", "Sacai", "Double-Layered Denim", "Blue/Black", "M", 8, "Deconstructed two-layer jacket", 890.00, 1, 550.00));
-            inventory.addItem(new ClothingItem("Jacket", "Number (N)ine", "A Closing Echo Leather", "Black", "M", 9, "Lambskin jacket with distressed finish", 2400.00, 1, 1500.00));
+            inventory.addItem(new ClothingItem("Outerwear", "Enfants Riches Déprimés", "Distressed Denim Jacket", "Blue", "L", 8, "", 850.00, 1, 500.00));
+            inventory.addItem(new ClothingItem("Outerwear", "Raf Simons", "Consumed Parka", "Olive", "M", 9, "", 2200.00, 1, 1300.00));
+            inventory.addItem(new ClothingItem("Outerwear", "Yohji Yamamoto", "Asymmetric Drape Blazer", "Black", "L", 8, "", 1500.00, 1, 900.00));
+            inventory.addItem(new ClothingItem("Outerwear", "Sacai", "Double-Layered Denim", "Blue/Black", "M", 8, "", 890.00, 1, 550.00));
+            inventory.addItem(new ClothingItem("Outerwear", "Number (N)ine", "A Closing Echo Leather", "Black", "M", 9, "", 2400.00, 1, 1500.00));
 
-            inventory.addItem(new ClothingItem("Bag", "Prada", "Nylon Belt Bag", "Black", "One Size", 9, "Re-edition 2000 nylon with logo plaque", 950.00, 1, 500.00));
-            inventory.addItem(new ClothingItem("Accessories", "Vivienne Westwood", "Orb Choker", "Gold", "One Size", 10, "Gold-plated choker with orb pendant", 320.00, 1, 180.00));
-            inventory.addItem(new ClothingItem("Accessories", "Alexander McQueen", "Skull Scarf", "Black/Silver", "One Size", 9, "Silk twill skull print scarf", 250.00, 1, 140.00));
-            inventory.addItem(new ClothingItem("Accessories", "Off-White", "Arrow Belt", "Yellow/Black", "120cm", 9, "Industrial yellow belt with metal details", 200.00, 1, 100.00));
+            inventory.addItem(new ClothingItem("Bags", "Prada", "Nylon Belt Bag", "Black", "One Size", 9, "", 950.00, 1, 500.00));
+            inventory.addItem(new ClothingItem("Jewelry", "Vivienne Westwood", "Orb Choker", "Gold", "One Size", 10, "", 320.00, 1, 180.00));
+            inventory.addItem(new ClothingItem("Accessories", "Alexander McQueen", "Skull Scarf", "Black/Silver", "One Size", 9, "", 250.00, 1, 140.00));
+            inventory.addItem(new ClothingItem("Accessories", "Off-White", "Arrow Belt", "Yellow/Black", "120cm", 9, "", 200.00, 1, 100.00));
 
-            inventory.addItem(new ClothingItem("Sweater", "Comme des Garçons", "PLAY Striped", "Navy/White", "M", 9, "Striped sweater with heart logo", 450.00, 1, 260.00));
-            inventory.addItem(new ClothingItem("Sweater", "Bape", "Shark Hoodie", "Camo", "L", 7, "Camouflage hoodie with shark face", 380.00, 1, 220.00));
-            inventory.addItem(new ClothingItem("Sweater", "Vetements", "Metal Logo Hoodie", "Gray", "XL", 8, "Oversized with metal lettering", 650.00, 1, 390.00));
+            ClothingItem soldItem1 = new ClothingItem("Tops", "Comme des Garçons", "PLAY Striped", "Navy/White", "M", 9, "", 450.00, 1, 260.00);
+            soldItem1.setSold(true);
+            inventory.addItem(soldItem1);
 
-            inventory.addItem(new ClothingItem("Jewelry", "Chrome Hearts", "Cemetery Cross Ring", "Silver", "8", 10, "Sterling silver cross motif ring", 1500.00, 1, 900.00));
-            inventory.addItem(new ClothingItem("Jewelry", "Chrome Hearts", "Dagger Pendant", "Silver", "One Size", 9, "925 Silver dagger necklace", 1200.00, 1, 700.00));
+            ClothingItem soldItem2 = new ClothingItem("Tops", "Bape", "Shark Hoodie", "Camo", "L", 7, "", 380.00, 1, 220.00);
+            soldItem2.setSold(true);
+            inventory.addItem(soldItem2);
 
-            inventory.addItem(new ClothingItem("Jacket", "Kapital", "Century Denim", "Indigo", "L", 8, "Sashiko-stitched denim jacket", 680.00, 1, 400.00));
-            inventory.addItem(new ClothingItem("Shoes", "Saint Laurent", "Wyatt Boots", "Black", "9.5", 8, "Chelsea boots with harness detailing", 990.00, 1, 600.00));
-            inventory.addItem(new ClothingItem("Jacket", "Comme des Garçons", "Homme Plus Blazer", "Navy", "M", 9, "Deconstructed asymmetric blazer", 1200.00, 1, 720.00));
+            ClothingItem soldItem3 = new ClothingItem("Jewelry", "Chrome Hearts", "Cemetery Cross Ring", "Silver", "8", 10, "", 1500.00, 1, 900.00);
+            soldItem3.setSold(true);
+            inventory.addItem(soldItem3);
+
+            ClothingItem incomingItem1 = new ClothingItem("Outerwear", "Kapital", "Century Denim", "Indigo", "L", 8, "", 680.00, 1, 400.00);
+            incomingItem1.setIncoming(true);
+            inventory.addItem(incomingItem1);
+
+            ClothingItem incomingItem2 = new ClothingItem("Footwear", "Saint Laurent", "Wyatt Boots", "Black", "9.5", 8, "", 990.00, 1, 600.00);
+            incomingItem2.setIncoming(true);
+            inventory.addItem(incomingItem2);
 
             new ClothingInventoryGUI(inventory);
 
