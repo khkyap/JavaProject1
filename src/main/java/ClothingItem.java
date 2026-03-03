@@ -1,7 +1,11 @@
 import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
 import java.time.LocalDate;
-public class ClothingItem implements Comparable<ClothingItem> {
+import java.io.Serializable;
+
+
+public class ClothingItem implements Comparable<ClothingItem>, Serializable {
+    private static final long serialVersionUID = 1L;
     private double purchasePrice;
     private double profit;
     private String category;
@@ -17,6 +21,10 @@ public class ClothingItem implements Comparable<ClothingItem> {
     private boolean cancelled = false;
     private boolean incoming = false;
     private LocalDate dateAdded;
+    private String imagePath = null;
+
+    public String getImagePath() { return imagePath; }
+    public void setImagePath(String imagePath) { this.imagePath = imagePath; }
 
     public boolean isIncoming() { return incoming; }
     public void setIncoming(boolean incoming) { this.incoming = incoming; }
@@ -136,7 +144,9 @@ public class ClothingItem implements Comparable<ClothingItem> {
     public boolean isCancelled() { return cancelled; }
     public void setCancelled(boolean cancelled) { this.cancelled = cancelled; }
     public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = capitalizeWords(category); }
+    public void setCategory(String category) {
+        this.category = capitalizeWords(category);
+    }
     public String getBrand() { return brand; }
     public void setBrand(String brand) { this.brand = capitalizeWords(brand); }
     public String getName() { return name; }

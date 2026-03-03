@@ -12,6 +12,7 @@ import java.io.IOException;
 import javax.swing.Timer;
 import java.awt.event.ActionListener;
 
+
 public class ClothingInventoryGUI {
     private ClothingInventory inventory;
     private FinancialData financialData = new FinancialData();
@@ -35,7 +36,7 @@ public class ClothingInventoryGUI {
 
     private Map<JCheckBox, ClothingItem> checkBoxItemMap;
     private JButton confirmButton;
-    private JTextArea terminalLog;
+    private JTextArea terminalArea;
     private Set<String> knownBrands = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 
     public ClothingInventoryGUI(ClothingInventory inventory) {
@@ -58,7 +59,14 @@ public class ClothingInventoryGUI {
 
     private void createGUI() {
         frame = new JFrame("Clothing Inventory");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                saveInventory();
+                System.exit(0);
+            }
+        });
         frame.setSize(1250, 750);
         frame.setLayout(new BorderLayout());
         frame.getContentPane().setBackground(new Color(54, 57, 63));
@@ -216,6 +224,30 @@ public class ClothingInventoryGUI {
         addItemButton.addActionListener(e -> addItemDialog(null));
         sidePanel.add(addItemButton);
 
+        terminalArea = new JTextArea(8, 20);
+        terminalArea.setEditable(false);
+        terminalArea.setBackground(new Color(32, 34, 37));
+        terminalArea.setForeground(new Color(185, 187, 190));
+        terminalArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        terminalArea.setLineWrap(true);
+        terminalArea.setWrapStyleWord(true);
+        terminalArea.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5)); // Inner padding
+
+        JScrollPane terminalScroll = new JScrollPane(terminalArea);
+        terminalScroll.getViewport().setBackground(new Color(32, 34, 37)); // Hides white viewport edges
+        terminalScroll.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(32, 34, 37), 2), // Darker, thicker border
+                "ACTION LOG",
+                javax.swing.border.TitledBorder.LEFT,
+                javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 10),
+                new Color(114, 118, 125)
+        ));
+        terminalScroll.setMaximumSize(new Dimension(300, 160));
+
+        sidePanel.add(terminalScroll);
+        sidePanel.add(Box.createVerticalStrut(10));
+
         sidePanel.add(Box.createVerticalGlue());
         JPanel actionPanel = new JPanel();
         actionPanel.setBackground(new Color(47, 49, 54));
@@ -322,6 +354,37 @@ public class ClothingInventoryGUI {
             JPanel identityPanel = new JPanel(new GridLayout(2, 1));
             identityPanel.setOpaque(false);
 
+            JPanel leftWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+            leftWrapper.setOpaque(false);
+
+            JLabel imageLabel = new JLabel();
+            imageLabel.setPreferredSize(new Dimension(50, 50));
+            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+            ImageIcon icon = null;
+
+            if (item.getImagePath() != null && !item.getImagePath().trim().isEmpty()) {
+                icon = getScaledImage(item.getImagePath(), 50, 50);
+            }
+
+            if (icon == null) {
+                String formattedBrand = item.getBrand().toLowerCase().replace(" ", "_");
+                String brandLogoPath = "logos/" + formattedBrand + ".png";
+                icon = getScaledImage(brandLogoPath, 50, 50);
+            }
+
+            if (icon != null) {
+                imageLabel.setIcon(icon);
+            } else {
+                imageLabel.setText("IMG");
+                imageLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                imageLabel.setForeground(new Color(114, 118, 125));
+                imageLabel.setBorder(BorderFactory.createLineBorder(new Color(66, 70, 77)));
+            }
+
+            leftWrapper.add(imageLabel);
+            leftWrapper.add(identityPanel);
+
             JLabel brandLabel = new JLabel();
             brandLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
             if (isStale) {
@@ -398,8 +461,22 @@ public class ClothingInventoryGUI {
                 btnWrapper.add(deliverBtn);
                 itemPanel.add(btnWrapper, BorderLayout.SOUTH);
             }
+            else if (item.isSold()) {
+                JButton unsoldBtn = new JButton("MARK UNSOLD");
+                unsoldBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                unsoldBtn.setBackground(new Color(114, 118, 125));
+                unsoldBtn.setForeground(Color.WHITE);
+                unsoldBtn.addActionListener(e -> {
+                    item.setSold(false);
+                    trackUndoAction(new InventoryAction(InventoryAction.Type.EDIT, item, "Unsold"));
+                    refreshInventoryDisplay();
+                    updateFinancialDisplay();
+                });
+                btnWrapper.add(unsoldBtn);
+                itemPanel.add(btnWrapper, BorderLayout.SOUTH);
+            }
 
-            itemPanel.add(identityPanel, BorderLayout.WEST);
+            itemPanel.add(leftWrapper, BorderLayout.WEST);
             itemPanel.add(financeMatrix, BorderLayout.EAST);
 
             itemPanel.addMouseListener(new MouseAdapter() {
@@ -447,23 +524,57 @@ public class ClothingInventoryGUI {
         Set<String> knownBrands = inventory.getInventory().stream()
                 .map(ClothingItem::getBrand)
                 .collect(Collectors.toSet());
-        Vector<String> brandList = new Vector<>(knownBrands);
+        List<String> brandList = new ArrayList<>(knownBrands);
         Collections.sort(brandList);
 
-        JComboBox<String> catBox = new JComboBox<>(PRESET_CATEGORIES);
+        List<String> catList = new ArrayList<>(Arrays.asList(PRESET_CATEGORIES));
+
+        JComboBox<String> catBox = new JComboBox<>(catList.toArray(new String[0]));
         catBox.setEditable(true);
+        setupAutoComplete(catBox, catList);
         if (existingItem != null) catBox.setSelectedItem(existingItem.getCategory());
 
-        JComboBox<String> brandBox = new JComboBox<>(brandList);
+        JComboBox<String> brandBox = new JComboBox<>(brandList.toArray(new String[0]));
         brandBox.setEditable(true);
+        setupAutoComplete(brandBox, brandList);
         if (existingItem != null) brandBox.setSelectedItem(existingItem.getBrand());
 
         JTextField nameField = new JTextField(existingItem != null ? existingItem.getName() : "");
         JTextField priceField = new JTextField(existingItem != null ? String.valueOf(existingItem.getPrice()) : "0.0");
         JTextField stockField = new JTextField(existingItem != null ? String.valueOf(existingItem.getStock()) : "1");
         JTextField buyPriceField = new JTextField(existingItem != null ? String.valueOf(existingItem.getPurchasePrice()) : "0.0");
+
+        String[] currentImagePath = { existingItem != null ? existingItem.getImagePath() : null };
+        JButton imageButton = new JButton("Select Image...");
+        imageButton.setForeground(Color.WHITE);
+        imageButton.setBackground(new Color(88, 101, 242));
+        imageButton.setFocusPainted(false);
+        JLabel imagePathLabel = new JLabel(currentImagePath[0] != null ? "Image Attached" : "No Image");
+        imagePathLabel.setForeground(Color.WHITE);
+
+        imageButton.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            int result = chooser.showOpenDialog(frame);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                currentImagePath[0] = chooser.getSelectedFile().getAbsolutePath();
+                imagePathLabel.setText("Image Attached");
+            }
+        });
+
+        JPanel imagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        imagePanel.setOpaque(false);
+        imagePanel.add(imageButton);
+        imagePanel.add(imagePathLabel);
+
         JCheckBox incomingCheck = new JCheckBox("Mark as Incoming (Pre-order)");
+        incomingCheck.setForeground(Color.WHITE);
+        incomingCheck.setBackground(new Color(54, 57, 63));
         if(existingItem != null) incomingCheck.setSelected(existingItem.isIncoming());
+
+        JCheckBox soldCheck = new JCheckBox("Mark as Sold");
+        soldCheck.setForeground(Color.WHITE);
+        soldCheck.setBackground(new Color(54, 57, 63));
+        if(existingItem != null) soldCheck.setSelected(existingItem.isSold());
 
         Object[] message = {
                 "Category:", catBox,
@@ -472,7 +583,9 @@ public class ClothingInventoryGUI {
                 "Price:", priceField,
                 "Stock:", stockField,
                 "Purchase Price:", buyPriceField,
-                incomingCheck
+                "Thumbnail:", imagePanel,
+                incomingCheck,
+                soldCheck
         };
 
         int option = JOptionPane.showConfirmDialog(frame, message, "Item Details", JOptionPane.OK_CANCEL_OPTION);
@@ -485,6 +598,8 @@ public class ClothingInventoryGUI {
                 if (existingItem == null) {
                     ClothingItem newItem = new ClothingItem(selectedCat, selectedBrand, nameField.getText(), "", "", 10, "", Double.parseDouble(priceField.getText()), Integer.parseInt(stockField.getText()), Double.parseDouble(buyPriceField.getText()));
                     newItem.setIncoming(incomingCheck.isSelected());
+                    newItem.setSold(soldCheck.isSelected());
+                    newItem.setImagePath(currentImagePath[0]);
                     inventory.addItem(newItem);
                     trackUndoAction(new InventoryAction(InventoryAction.Type.ADD, newItem, null));
                 } else {
@@ -495,6 +610,8 @@ public class ClothingInventoryGUI {
                     existingItem.setStock(Integer.parseInt(stockField.getText()));
                     existingItem.setPurchasePrice(Double.parseDouble(buyPriceField.getText()));
                     existingItem.setIncoming(incomingCheck.isSelected());
+                    existingItem.setSold(soldCheck.isSelected());
+                    existingItem.setImagePath(currentImagePath[0]);
                 }
                 refreshInventoryDisplay();
                 updateFinancialDisplay();
@@ -575,6 +692,7 @@ public class ClothingInventoryGUI {
         }
 
         InventoryAction action = undoStack.pop();
+        logTerminal("UNDOING: " + action.type.toString() + " -> " + action.item.getName());
 
         switch(action.type) {
             case ADD:
@@ -583,8 +701,10 @@ public class ClothingInventoryGUI {
             case EDIT:
                 if (action.previousValue instanceof Double) {
                     action.item.setPrice((Double) action.previousValue);
-                } else if (action.previousValue.equals("Incoming")) {
+                } else if ("Incoming".equals(action.previousValue)) {
                     action.item.setIncoming(true);
+                } else if ("Unsold".equals(action.previousValue)) {
+                    action.item.setSold(true);
                 }
                 break;
             case MARK_SOLD:
@@ -665,27 +785,54 @@ public class ClothingInventoryGUI {
     }
 
     private void showStatsDialog() {
-        long totalItems = inventory.getInventory().size();
-        long soldItems = inventory.getInventory().stream().filter(ClothingItem::isSold).count();
+        JDialog brandDialog = new JDialog(frame, "Lifetime Brand Analytics", true);
+        brandDialog.setSize(600, 400);
+        brandDialog.setLocationRelativeTo(frame);
+        brandDialog.getContentPane().setBackground(new Color(54, 57, 63));
 
-        Map<String, Long> brandCounts = inventory.getInventory().stream()
-                .collect(Collectors.groupingBy(ClothingItem::getBrand, Collectors.counting()));
+        Map<String, Double> brandSales = new HashMap<>();
+        Map<String, Integer> brandVolume = new HashMap<>();
 
-        String topBrand = brandCounts.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse("N/A");
+        for (ClothingItem item : inventory.getInventory()) {
+            String b = item.getBrand();
+            brandVolume.put(b, brandVolume.getOrDefault(b, 0) + 1);
 
-        String msg = String.format(
-                "Total Items Tracked: %d\n" +
-                        "Items Sold: %d\n" +
-                        "Conversion Rate: %.1f%%\n" +
-                        "Top Brand: %s",
-                totalItems, soldItems,
-                (totalItems > 0 ? ((double)soldItems/totalItems)*100 : 0),
-                topBrand
-        );
-        JOptionPane.showMessageDialog(frame, msg, "Inventory Statistics", JOptionPane.INFORMATION_MESSAGE);
+            if (item.isSold()) {
+                brandSales.put(b, brandSales.getOrDefault(b, 0.0) + item.getPrice());
+            } else {
+                brandSales.putIfAbsent(b, 0.0);
+            }
+        }
+
+        String[] columns = {"Brand", "Items Handled", "Lifetime Revenue"};
+        Object[][] data = new Object[brandSales.size()][3];
+
+        int i = 0;
+        for (Map.Entry<String, Double> entry : brandSales.entrySet()) {
+            data[i][0] = entry.getKey();
+            data[i][1] = brandVolume.get(entry.getKey());
+            data[i][2] = String.format("$%.2f", entry.getValue());
+            i++;
+        }
+
+        JTable table = new JTable(data, columns);
+        table.setBackground(new Color(47, 49, 54));
+        table.setForeground(Color.WHITE);
+        table.setGridColor(new Color(32, 34, 37));
+        table.setFillsViewportHeight(true);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.setRowHeight(25);
+
+        table.getTableHeader().setBackground(new Color(32, 34, 37));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        brandDialog.add(scrollPane);
+        brandDialog.setVisible(true);
     }
 
 
@@ -743,7 +890,12 @@ public class ClothingInventoryGUI {
             undoStack.removeElementAt(0);
         }
         undoStack.push(action);
+
+        String actionName = action.type.toString();
+        logTerminal("RECORDED: " + actionName + " -> " + action.item.getName());
     }
+
+
 
     private void handleInlinePriceEdit(ClothingItem item, JLabel label) {
         String input = JOptionPane.showInputDialog(frame, "Quick Edit Price:", item.getPrice());
@@ -779,8 +931,39 @@ public class ClothingInventoryGUI {
     private void finalizeSold(ClothingItem item) {
         pendingSoldTimers.remove(item);
         item.setSold(true);
+        trackUndoAction(new InventoryAction(InventoryAction.Type.MARK_SOLD, item, null));
         updateFinancialDisplay();
         refreshInventoryDisplay();
+    }
+
+    private void setupAutoComplete(JComboBox<String> comboBox, List<String> items) {
+        JTextField textField = (JTextField) comboBox.getEditor().getEditorComponent();
+        textField.addKeyListener(new KeyAdapter() {
+            public void keyReleased(KeyEvent e) {
+                SwingUtilities.invokeLater(() -> {
+                    if (e.getKeyCode() == KeyEvent.VK_UP || e.getKeyCode() == KeyEvent.VK_DOWN || e.getKeyCode() == KeyEvent.VK_ENTER) {
+                        return;
+                    }
+                    String text = textField.getText();
+                    DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) comboBox.getModel();
+                    model.removeAllElements();
+
+                    for (String item : items) {
+                        if (item.toLowerCase().contains(text.toLowerCase())) {
+                            model.addElement(item);
+                        }
+                    }
+
+                    textField.setText(text);
+
+                    if (model.getSize() > 0 && !text.isEmpty()) {
+                        comboBox.showPopup();
+                    } else {
+                        comboBox.hidePopup();
+                    }
+                });
+            }
+        });
     }
 
     private void exportToCSV() {
@@ -900,39 +1083,26 @@ public class ClothingInventoryGUI {
         return container;
     }
 
-    private JPanel createTerminalPanel() {
-        JPanel terminalContainer = new JPanel(new BorderLayout());
-        terminalContainer.setBackground(new Color(47, 49, 54));
-        terminalContainer.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createEmptyBorder(10, 0, 0, 0),
-                BorderFactory.createLineBorder(new Color(32, 34, 37), 1)
-        ));
 
-        JLabel termLabel = new JLabel(" SYSTEM LOG");
-        termLabel.setFont(new Font("Monospaced", Font.BOLD, 10));
-        termLabel.setForeground(new Color(114, 118, 125));
-        terminalContainer.add(termLabel, BorderLayout.NORTH);
-
-        terminalLog = new JTextArea(6, 20);
-        terminalLog.setBackground(new Color(30, 32, 36));
-        terminalLog.setForeground(new Color(0, 255, 127));
-        terminalLog.setFont(new Font("Monospaced", Font.PLAIN, 10));
-        terminalLog.setEditable(false);
-        terminalLog.setLineWrap(true);
-        terminalLog.setWrapStyleWord(true);
-
-        JScrollPane scrollPane = new JScrollPane(terminalLog);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        terminalContainer.add(scrollPane, BorderLayout.CENTER);
-
-        return terminalContainer;
-    }
-
-    private void logAction(String message) {
-        if (terminalLog != null) {
-            terminalLog.append("> " + message + "\n");
-            terminalLog.setCaretPosition(terminalLog.getDocument().getLength());
+    private ImageIcon getScaledImage(String path, int width, int height) {
+        if (path == null || path.trim().isEmpty()) return null;
+        java.io.File file = new java.io.File(path);
+        if (!file.exists()) return null;
+        try {
+            java.awt.Image img = javax.imageio.ImageIO.read(file);
+            if (img == null) return null;
+            java.awt.Image scaled = img.getScaledInstance(width, height, java.awt.Image.SCALE_SMOOTH);
+            return new ImageIcon(scaled);
+        } catch (Exception e) {
+            return null;
         }
+    }
+    private void logTerminal(String message) {
+        if (terminalArea == null) return;
+        java.time.LocalTime now = java.time.LocalTime.now();
+        String timeStr = String.format("%02d:%02d:%02d", now.getHour(), now.getMinute(), now.getSecond());
+        terminalArea.append("[" + timeStr + "] " + message + "\n");
+        terminalArea.setCaretPosition(terminalArea.getDocument().getLength());
     }
 
     private void showBrandLedger() {
@@ -990,6 +1160,25 @@ public class ClothingInventoryGUI {
         if (label.contains("Sold") || label.contains("Add")) return new Color(0, 153, 76);
         if (label.contains("Cancelled") || label.contains("Reset") || label.contains("Clear")) return new Color(204, 0, 0);
         return new Color(88, 101, 242);
+    }
+
+    private void saveInventory() {
+        try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(new java.io.FileOutputStream("inventory.dat"))) {
+            oos.writeObject(inventory.getInventory());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadInventory() {
+        try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(new java.io.FileInputStream("inventory.dat"))) {
+            List<ClothingItem> loadedItems = (List<ClothingItem>) ois.readObject();
+            inventory.getInventory().clear();
+            inventory.getInventory().addAll(loadedItems);
+        } catch (Exception e) {
+            System.out.println("No existing save file found. Starting fresh.");
+        }
     }
 
 

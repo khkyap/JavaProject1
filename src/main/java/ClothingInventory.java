@@ -19,14 +19,7 @@ public class ClothingInventory {
     }
 
     public void addItem(ClothingItem item) {
-        String category = normalizeCategoryName(item.getCategory());
-        if (!isValidCategory(category)) {
-            System.out.println("Invalid category: " + category);
-            return;
-        }
-        item.setCategory(category);
         inventory.add(item);
-        System.out.println("Item added successfully!");
     }
 
     public void sortByName() {
