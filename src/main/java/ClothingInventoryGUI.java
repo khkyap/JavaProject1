@@ -1,16 +1,23 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.*;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
 import javax.swing.Timer;
 import java.awt.event.ActionListener;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.*;
+import java.lang.reflect.Type;
+import java.time.LocalDate;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.text.Normalizer;
+
 
 
 public class ClothingInventoryGUI {
@@ -126,7 +133,11 @@ public class ClothingInventoryGUI {
         panel = new JPanel(new GridLayout(0, 1, 0, 5));
         panel.setBackground(new Color(54, 57, 63));
 
-        JScrollPane scrollPane = new JScrollPane(panel);
+        JPanel wrapperPanel = new JPanel(new BorderLayout());
+        wrapperPanel.setBackground(new Color(54, 57, 63));
+        wrapperPanel.add(panel, BorderLayout.NORTH);
+
+        JScrollPane scrollPane = new JScrollPane(wrapperPanel);
         scrollPane.getViewport().setBackground(new Color(54, 57, 63));
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
@@ -407,8 +418,8 @@ public class ClothingInventoryGUI {
             }
 
             if (icon == null) {
-                String formattedBrand = item.getBrand().toLowerCase().replace(" ", "_");
-                String brandLogoPath = "logos/" + formattedBrand + ".png";
+                String sanitizedBrand = sanitizeBrandName(item.getBrand());
+                String brandLogoPath = "logos/" + sanitizedBrand + ".png";
                 icon = getScaledImage(brandLogoPath, 50, 50);
             }
 
@@ -1135,17 +1146,63 @@ public class ClothingInventoryGUI {
         return container;
     }
 
+    private String sanitizeBrandName(String brand) {
+        if (brand == null) return "unknown";
+        String normalized = brand.toLowerCase();
+        normalized = Normalizer.normalize(normalized, Normalizer.Form.NFD);
+        normalized = normalized.replaceAll("\\p{M}", "");
+        normalized = normalized.replaceAll("[\\s\\-]+", "_");
+        normalized = normalized.replaceAll("[^a-z0-9_]", "");
+        normalized = normalized.replaceAll("_+", "_");
+        return normalized;
+    }
 
-    private ImageIcon getScaledImage(String path, int width, int height) {
+    private ImageIcon getScaledImage(String path, int targetWidth, int targetHeight) {
         if (path == null || path.trim().isEmpty()) return null;
-        java.io.File file = new java.io.File(path);
-        if (!file.exists()) return null;
+
         try {
-            java.awt.Image img = javax.imageio.ImageIO.read(file);
+            java.awt.Image img = null;
+            java.io.File file = new java.io.File(path);
+
+            if (file.exists()) {
+                img = javax.imageio.ImageIO.read(file);
+            }
+            else {
+                java.net.URL resourceUrl = getClass().getResource("/" + path);
+                if (resourceUrl != null) {
+                    img = javax.imageio.ImageIO.read(resourceUrl);
+                }
+            }
+
             if (img == null) return null;
-            java.awt.Image scaled = img.getScaledInstance(width, height, java.awt.Image.SCALE_SMOOTH);
-            return new ImageIcon(scaled);
+
+            int imgWidth = img.getWidth(null);
+            int imgHeight = img.getHeight(null);
+
+            double widthRatio = (double) targetWidth / imgWidth;
+            double heightRatio = (double) targetHeight / imgHeight;
+            double scale = Math.min(widthRatio, heightRatio);
+
+            int scaledWidth = (int) (imgWidth * scale);
+            int scaledHeight = (int) (imgHeight * scale);
+
+            BufferedImage canvas = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = canvas.createGraphics();
+
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int x = (targetWidth - scaledWidth) / 2;
+            int y = (targetHeight - scaledHeight) / 2;
+
+            g2d.drawImage(img, x, y, scaledWidth, scaledHeight, null);
+            g2d.dispose();
+
+            return new ImageIcon(canvas);
+
         } catch (Exception e) {
+            System.out.println("Image Load Error for path (" + path + "): " + e.getMessage());
             return null;
         }
     }
@@ -1214,10 +1271,28 @@ public class ClothingInventoryGUI {
         return new Color(88, 101, 242);
     }
 
+
+
+    class LocalDateAdapter implements JsonSerializer<LocalDate>, JsonDeserializer<LocalDate> {
+        public JsonElement serialize(LocalDate date, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(date.toString());
+        }
+
+        public LocalDate deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            return LocalDate.parse(json.getAsString());
+        }
+    }
+
     private void saveInventory() {
-        java.io.File saveFile = new java.io.File("inventory.dat");
-        try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(new java.io.FileOutputStream(saveFile))) {
-            oos.writeObject(inventory.getInventory());
+        java.io.File saveFile = new java.io.File("inventory.json");
+
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+                .setPrettyPrinting()
+                .create();
+
+        try (Writer writer = new FileWriter(saveFile)) {
+            gson.toJson(inventory.getInventory(), writer);
             System.out.println("SUCCESS: Saved " + inventory.getInventory().size() + " items to " + saveFile.getAbsolutePath());
         } catch (Exception e) {
             System.out.println("SAVE ERROR:");
@@ -1225,47 +1300,44 @@ public class ClothingInventoryGUI {
         }
     }
 
-    @SuppressWarnings("unchecked")
+
+
     private void loadInventory() {
-        java.io.File saveFile = new java.io.File("inventory.dat");
+        java.io.File saveFile = new java.io.File("inventory.json");
 
         if (!saveFile.exists()) {
-            System.out.println("No save file detected on boot.");
+            System.out.println("No JSON save file detected on boot.");
             return;
         }
 
-        try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(new java.io.FileInputStream(saveFile))) {
-            Object rawData = ois.readObject();
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+                .create();
 
-            // 1. Safety Check: Did the file contain null data?
-            if (rawData == null) {
-                System.out.println("Save file is empty.");
+        try (Reader reader = new FileReader(saveFile)) {
+            Type listType = new TypeToken<ArrayList<ClothingItem>>(){}.getType();
+            List<ClothingItem> loadedItems = gson.fromJson(reader, listType);
+
+            if (loadedItems == null) {
+                System.out.println("JSON file is empty.");
                 return;
             }
 
-            List<ClothingItem> loadedItems = (List<ClothingItem>) rawData;
-
-            // 2. Safety Check: Is the ClothingInventory object initialized?
             if (this.inventory != null) {
-
-                // 3. Safety Check: Is the internal ArrayList initialized?
                 if (this.inventory.getInventory() != null) {
                     this.inventory.getInventory().clear();
                 }
 
-                // 4. Safely add the items back
                 for (ClothingItem item : loadedItems) {
                     if (item != null) {
                         this.inventory.addItem(item);
                     }
                 }
-                System.out.println("SUCCESS: Safely loaded " + loadedItems.size() + " items.");
-            } else {
-                System.out.println("ERROR: The inventory manager object was null.");
+                System.out.println("SUCCESS: Safely loaded " + loadedItems.size() + " items from JSON.");
             }
 
         } catch (Exception e) {
-            System.out.println("CRITICAL LOAD ERROR:");
+            System.out.println("CRITICAL JSON LOAD ERROR:");
             e.printStackTrace();
         }
     }
