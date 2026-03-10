@@ -1214,56 +1214,6 @@ public class ClothingInventoryGUI {
         terminalArea.setCaretPosition(terminalArea.getDocument().getLength());
     }
 
-    private void showBrandLedger() {
-        JDialog ledgerDialog = new JDialog(frame, "Brand Ledger & Lifetime Sales", true);
-        ledgerDialog.setSize(600, 400);
-        ledgerDialog.setLocationRelativeTo(frame);
-        ledgerDialog.getContentPane().setBackground(new Color(54, 57, 63));
-
-        Map<String, Double> lifetimeSales = new HashMap<>();
-        Map<String, Integer> itemsHandled = new HashMap<>();
-
-        for (ClothingItem item : inventory.getInventory()) {
-            String brand = item.getBrand().toUpperCase();
-            itemsHandled.put(brand, itemsHandled.getOrDefault(brand, 0) + 1);
-            if (item.isSold()) {
-                lifetimeSales.put(brand, lifetimeSales.getOrDefault(brand, 0.0) + item.getPrice());
-            }
-        }
-
-        String[] columns = {"Brand", "Total Items Handled", "Lifetime Gross Sales"};
-        Object[][] data = new Object[knownBrands.size()][3];
-
-        int i = 0;
-        for (String brand : knownBrands) {
-            data[i][0] = brand.toUpperCase();
-            data[i][1] = itemsHandled.getOrDefault(brand.toUpperCase(), 0);
-            data[i][2] = String.format("$%.2f", lifetimeSales.getOrDefault(brand.toUpperCase(), 0.0));
-            i++;
-        }
-
-        JTable table = new JTable(data, columns);
-        table.setBackground(new Color(47, 49, 54));
-        table.setForeground(Color.WHITE);
-        table.setGridColor(new Color(32, 34, 37));
-        table.setFillsViewportHeight(true);
-
-        table.getTableHeader().setBackground(new Color(32, 34, 37));
-        table.getTableHeader().setForeground(Color.WHITE);
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-
-        ledgerDialog.add(scrollPane);
-        ledgerDialog.setVisible(true);
-    }
-
-    private void navigateItems(int dir) {
-        int listSize = getItemsInCurrentCategory().size();
-        itemOffset = Math.max(0, Math.min(itemOffset + dir, Math.max(0, listSize - MAX_DISPLAY_ITEMS)));
-        refreshInventoryDisplay();
-    }
 
     private Color suggestColor(String label) {
         if (label.contains("Sold") || label.contains("Add")) return new Color(0, 153, 76);
