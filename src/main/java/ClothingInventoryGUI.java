@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.Timer;
-import java.awt.event.ActionListener;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.*;
 import java.lang.reflect.Type;
@@ -28,11 +27,9 @@ public class ClothingInventoryGUI {
     private JLabel netWorthLabel, inventoryValueLabel, totalProfitLabel;
     private JFrame frame;
     private JPanel panel;
-    private JTabbedPane tabbedPane;
     private String currentCategory = "All";
     private String currentStatus = "ACTIVE";
     private int itemOffset = 0;
-    private Timer currentAnimationTimer;
     private String currentSortMethod = "Newest First";
     private String currentViewMode = "List";
 
@@ -141,6 +138,7 @@ public class ClothingInventoryGUI {
         scrollPane.getViewport().setBackground(new Color(54, 57, 63));
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.getVerticalScrollBar().setUI(new SleekScrollBarUI());
 
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
@@ -287,7 +285,7 @@ public class ClothingInventoryGUI {
 
         sidePanel.add(terminalScroll);
         sidePanel.add(Box.createVerticalStrut(10));
-
+        terminalScroll.getVerticalScrollBar().setUI(new SleekScrollBarUI());
         sidePanel.add(Box.createVerticalGlue());
         JPanel actionPanel = new JPanel();
         actionPanel.setBackground(new Color(47, 49, 54));
@@ -309,12 +307,6 @@ public class ClothingInventoryGUI {
         if (currentCategory == null && PRESET_CATEGORIES.length > 0) currentCategory = PRESET_CATEGORIES[0];
         refreshInventoryDisplay();
         frame.setVisible(true);
-    }
-
-    private void filterByCategory(String category) {
-        this.currentCategory = category;
-        this.itemOffset = 0;
-        refreshInventoryDisplay();
     }
 
     private List<ClothingItem> getItemsInCurrentCategory() {
@@ -540,18 +532,6 @@ public class ClothingInventoryGUI {
         return itemPanel;
     }
 
-    private JButton createSlimNavButton(String text, ActionListener al) {
-        JButton b = new JButton(text);
-        b.setPreferredSize(new Dimension(0, 20));
-        b.setBackground(new Color(47, 49, 54));
-        b.setForeground(new Color(114, 118, 125));
-        b.setBorder(BorderFactory.createEmptyBorder());
-        b.setFocusPainted(false);
-        b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        b.addActionListener(al);
-        return b;
-    }
-
     private JPanel createStatSubPanel(String label, String value, Color valColor) {
         JPanel p = new JPanel(new GridLayout(2, 1));
         p.setOpaque(false);
@@ -671,54 +651,33 @@ public class ClothingInventoryGUI {
         }
     }
 
-    private void showBrandsListDialog() {
-        JDialog brandDialog = new JDialog(frame, "Lifetime Brand Analytics", true);
-        brandDialog.setSize(600, 400);
-        brandDialog.setLocationRelativeTo(frame);
-        brandDialog.getContentPane().setBackground(new Color(54, 57, 63));
-
-        Map<String, Double> brandSales = new HashMap<>();
-        Map<String, Integer> brandVolume = new HashMap<>();
-
-        for (ClothingItem item : inventory.getInventory()) {
-            String b = item.getBrand();
-            brandVolume.put(b, brandVolume.getOrDefault(b, 0) + 1);
-            if (item.isSold()) {
-                brandSales.put(b, brandSales.getOrDefault(b, 0.0) + item.getPrice());
-            } else {
-                brandSales.putIfAbsent(b, 0.0);
-            }
+    private static class SleekScrollBarUI extends javax.swing.plaf.basic.BasicScrollBarUI {
+        @Override
+        protected void configureScrollBarColors() {
+            this.thumbColor = new Color(64, 68, 75);
+            this.trackColor = new Color(47, 49, 54);
+            this.thumbDarkShadowColor = new Color(64, 68, 75);
+            this.thumbHighlightColor = new Color(64, 68, 75);
+            this.thumbLightShadowColor = new Color(64, 68, 75);
         }
 
-        String[] columns = {"Brand", "Items Handled", "Lifetime Revenue"};
-        Object[][] data = new Object[brandSales.size()][3];
-
-        int i = 0;
-        for (Map.Entry<String, Double> entry : brandSales.entrySet()) {
-            data[i][0] = entry.getKey();
-            data[i][1] = brandVolume.get(entry.getKey());
-            data[i][2] = String.format("$%.2f", entry.getValue());
-            i++;
+        @Override
+        protected JButton createDecreaseButton(int orientation) {
+            return createZeroButton();
         }
 
-        JTable table = new JTable(data, columns);
-        table.setBackground(new Color(47, 49, 54));
-        table.setForeground(Color.WHITE);
-        table.setGridColor(new Color(32, 34, 37));
-        table.setFillsViewportHeight(true);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        table.setRowHeight(25);
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return createZeroButton();
+        }
 
-        table.getTableHeader().setBackground(new Color(32, 34, 37));
-        table.getTableHeader().setForeground(Color.WHITE);
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.getViewport().setBackground(new Color(54, 57, 63));
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-
-        brandDialog.add(scrollPane);
-        brandDialog.setVisible(true);
+        private JButton createZeroButton() {
+            JButton button = new JButton();
+            button.setPreferredSize(new Dimension(0, 0));
+            button.setMinimumSize(new Dimension(0, 0));
+            button.setMaximumSize(new Dimension(0, 0));
+            return button;
+        }
     }
 
     private void handleSideButtonAction(String action) {
